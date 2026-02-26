@@ -1,4 +1,12 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+This is a [Next.js](https://nextjs.org) project for CRE Wallet.
+
+## Day 1 scope (MVP FE scaffold)
+
+- Base app shell (header/navigation)
+- Wallet connect button (injected wallet / MetaMask)
+- Dashboard skeleton
+- Create Vault page skeleton
+- Monitor page skeleton
 
 ## Getting Started
 
