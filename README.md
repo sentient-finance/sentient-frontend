@@ -35,7 +35,18 @@ Frontend cho Sentient Finance (Next.js) theo hướng hybrid:
   - `POST /vault/{address}/action/shield`
 - Poll `GET /executions/{id}` để cập nhật trạng thái tx
 
-### 5) Realtime UX
+### 5) Notification flow (Telegram for non-tech users)
+- Màn **Notifications** có nút `Connect Telegram`
+- User bấm link bot: `t.me/<bot>?start=link_<nonce>`
+- Bot nhận `start`, backend map `wallet_address <-> telegram_chat_id`
+- User bật/tắt loại cảnh báo theo vault:
+  - buy/sell threshold reached
+  - swap success/fail
+  - risk alert
+  - shield triggered
+- Có `Send test notification` để user tự kiểm tra
+
+### 6) Realtime UX
 - Sau khi execute thành công -> event on-chain -> subgraph index -> UI refresh history
 - Hiển thị trạng thái `queued/submitted/confirmed/failed`
 
@@ -46,6 +57,7 @@ Frontend cho Sentient Finance (Next.js) theo hướng hybrid:
 - `/app` Dashboard
 - `/app/vault/new` Create vault
 - `/app/vault/[address]` Vault detail + actions
+- `/app/notifications` Telegram connect + alert preferences
 - `/app/monitor` Logs/health
 
 ---
@@ -61,16 +73,14 @@ Frontend cho Sentient Finance (Next.js) theo hướng hybrid:
 ### REST (write)
 - execute / pause / shield
 - execution status
+- connect telegram / set alert preferences
 
 ---
 
 ## Local development
 
 ```bash
-# install
 npm install
-
-# run
 npm run dev
 ```
 
@@ -82,11 +92,13 @@ Open `http://localhost:3000`.
 NEXT_PUBLIC_GRAPHQL_URL=
 NEXT_PUBLIC_BACKEND_URL=
 NEXT_PUBLIC_CHAIN_ID=84532
+NEXT_PUBLIC_TELEGRAM_BOT_USERNAME=
 ```
 
 ## Definition of Done (MVP)
 - Connect wallet + switch network OK
 - Dashboard load data từ GraphQL
 - Action call REST thành công
-- Execution status hiển thị rõ
+- Telegram connect flow hoạt động
+- Alert preferences lưu được
 - History update sau khi event được index
