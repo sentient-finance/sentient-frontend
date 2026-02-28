@@ -1,36 +1,92 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Sentient Frontend
 
-## Getting Started
+Frontend cho Sentient Finance (Next.js) theo hướng hybrid:
+- **Read dữ liệu:** The Graph (GraphQL)
+- **Write/action:** sentient-backend (REST)
 
-First, run the development server:
+## Tech stack
+- Next.js (App Router)
+- TypeScript
+- Tailwind
+- Wallet: wagmi + viem
+
+## FE Flow (MVP)
+
+### 1) User vào app + connect wallet
+- Connect ví
+- Switch network (Base Sepolia ưu tiên)
+
+### 2) Dashboard (read-heavy)
+- Query GraphQL:
+  - danh sách vault
+  - trạng thái vault
+  - lịch sử swap/shield
+- Hiển thị card tổng quan theo chain
+
+### 3) Vault Detail
+- Tab Overview: balance, owner/executor, cooldown/slippage
+- Tab History: timeline event từ GraphQL
+- Tab Strategy: form set threshold/trade amount
+
+### 4) Action commands (write path)
+- Gọi REST backend:
+  - `POST /vault/{address}/action/execute`
+  - `POST /vault/{address}/action/pause`
+  - `POST /vault/{address}/action/shield`
+- Poll `GET /executions/{id}` để cập nhật trạng thái tx
+
+### 5) Realtime UX
+- Sau khi execute thành công -> event on-chain -> subgraph index -> UI refresh history
+- Hiển thị trạng thái `queued/submitted/confirmed/failed`
+
+---
+
+## Pages plan
+- `/` Landing
+- `/app` Dashboard
+- `/app/vault/new` Create vault
+- `/app/vault/[address]` Vault detail + actions
+- `/app/monitor` Logs/health
+
+---
+
+## API/Query contract
+
+### GraphQL (read)
+- vault list
+- vault detail
+- swap history
+- shield history
+
+### REST (write)
+- execute / pause / shield
+- execution status
+
+---
+
+## Local development
 
 ```bash
+# install
+npm install
+
+# run
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open `http://localhost:3000`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Env (example)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+NEXT_PUBLIC_GRAPHQL_URL=
+NEXT_PUBLIC_BACKEND_URL=
+NEXT_PUBLIC_CHAIN_ID=84532
+```
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Definition of Done (MVP)
+- Connect wallet + switch network OK
+- Dashboard load data từ GraphQL
+- Action call REST thành công
+- Execution status hiển thị rõ
+- History update sau khi event được index
