@@ -1,36 +1,49 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Sentient Frontend
 
-## Getting Started
+Frontend cho Sentient Finance (Next.js) theo hướng hybrid:
+- **Read data:** The Graph (GraphQL)
+- **Write actions:** sentient-backend (REST)
 
-First, run the development server:
+## MVP workflow
+
+1. **Connect wallet + network** (Base Sepolia)
+2. **Read vault state/history** qua GraphQL
+3. **Execute action** (`execute/pause/shield`) qua REST backend
+4. **Track execution** (`queued -> submitted -> confirmed/failed`)
+5. **Telegram notifications** cho user non-tech (connect bot + alert preferences)
+
+## Route map
+
+- `/` Landing / workflow overview
+- `/app` Dashboard
+- `/app/vault/new` Create vault
+- `/app/vault/[address]` Vault detail + actions
+- `/app/notifications` Telegram link + alert settings
+- `/app/monitor` Logs/health
+
+## Color base (design tokens)
+
+Defined in `app/globals.css`:
+- `--background`, `--foreground`, `--muted`
+- `--card`, `--card-2`, `--border`
+- `--primary`, `--success`, `--warning`, `--danger`
+
+Use these tokens for consistent UI across pages.
+
+## Local development
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open: `http://localhost:3000`
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Env example
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+NEXT_PUBLIC_GRAPHQL_URL=
+NEXT_PUBLIC_BACKEND_URL=
+NEXT_PUBLIC_CHAIN_ID=84532
+NEXT_PUBLIC_TELEGRAM_BOT_USERNAME=
+```
