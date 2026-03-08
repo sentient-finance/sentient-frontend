@@ -4,72 +4,22 @@ import { AddChainCard } from "@/components/dashboard/add-chain-card";
 import { ChainCard } from "@/components/dashboard/chain-card";
 import { ChainSelectModal } from "@/components/dashboard/chain-select-modal";
 import { VaultCard } from "@/components/dashboard/vault-card";
-import { VaultPanel } from "@/components/dashboard/vault-panel/index";
-import { useCreateVault } from "@/hooks/use-create-vault";
-import { SUPPORTED_CHAINS } from "@/lib/constants/chains";
-import type { ChainInfo, VaultItem } from "@/lib/types/dashboard";
-import { useDashboardViewModel } from "@/lib/view-models/use-dashboard-view-model";
-import { useRef, useState } from "react";
+import { VaultPanel } from "@/components/dashboard/vault-panel";
+import { useDashboard } from "@/hooks/use-dashboard";
 
 export default function DashboardPage() {
-  const [refreshKey, setRefreshKey] = useState(0);
-  const { chains: onChainChains, vaults: onChainVaults } = useDashboardViewModel(refreshKey);
-  const { createVault, isCreating, error: vaultError } = useCreateVault();
-
-  // Locally added this session (before next on-chain refresh)
-  const [addedChains, setAddedChains] = useState<ChainInfo[]>([]);
-  const [addedVaults, setAddedVaults] = useState<VaultItem[]>([]);
-
-  const [chainSelectOpen, setChainSelectOpen] = useState(false);
-  const [selected, setSelected] = useState<VaultItem | null>(null);
-
-  const chainRefs = useRef<Record<string, HTMLDivElement | null>>({});
-
-  // Merge on-chain data with newly added (deduplicate by id / addr)
-  const allChains = [
-    ...onChainChains,
-    ...addedChains.filter((c) => !onChainChains.some((oc) => oc.id === c.id)),
-  ];
-  const allVaults = [
-    ...onChainVaults,
-    ...addedVaults.filter((v) => !onChainVaults.some((ov) => ov.addr === v.addr)),
-  ];
-
-  // Chains not yet on the dashboard
-  const availableChains = SUPPORTED_CHAINS.filter((c) => !allChains.some((a) => a.id === c.id));
-
-  function scrollToChain(chainName: string) {
-    chainRefs.current[chainName]?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
-
-  async function handleChainSelect(chain: ChainInfo) {
-    const vaultAddr = await createVault();
-    setChainSelectOpen(false);
-    if (!vaultAddr) return;
-
-    setAddedChains((prev) => [...prev, { ...chain, vaultCount: 1 }]);
-    setAddedVaults((prev) => [
-      ...prev,
-      {
-        addr: vaultAddr,
-        chain: chain.name,
-        status: "active",
-        balance: "—",
-        rule: "—",
-        lastExecution: "—",
-        pnl: "—",
-        pnlUp: true,
-      },
-    ]);
-    setRefreshKey((k) => k + 1);
-    setTimeout(() => scrollToChain(chain.name), 100);
-  }
-
-  const vaultsByChain = allVaults.reduce<Record<string, VaultItem[]>>((acc, v) => {
-    if (!acc[v.chain]) acc[v.chain] = [];
-    acc[v.chain].push(v);
-    return acc;
-  }, {});
+  const {
+    allChains,
+    availableChains,
+    vaultsByChain,
+    selected,
+    setSelected,
+    chainSelectOpen,
+    setChainSelectOpen,
+    chainRefs,
+    scrollToChain,
+    handleChainSelect,
+  } = useDashboard();
 
   return (
     <>
@@ -112,8 +62,6 @@ export default function DashboardPage() {
           chains={availableChains}
           onSelect={handleChainSelect}
           onClose={() => setChainSelectOpen(false)}
-          isCreating={isCreating}
-          error={vaultError}
         />
       )}
     </>
