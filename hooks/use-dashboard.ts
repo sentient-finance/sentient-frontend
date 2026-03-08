@@ -1,5 +1,6 @@
 "use client";
 
+import { SUPPORTED_CHAINS } from "@/lib/constants/chains";
 import type { ChainInfo, VaultItem } from "@/lib/types/dashboard";
 import { useDashboardViewModel } from "@/lib/view-models/use-dashboard-view-model";
 import { useMemo, useRef, useState } from "react";
@@ -27,13 +28,26 @@ export function useDashboard() {
 
   const chainRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
-  const allChains = useMemo(() => [...chains, ...addedChains], [chains, addedChains]);
+  const baseChains = useMemo(() => {
+    const existingByName = new Map(chains.map((c) => [c.name, c]));
+    return SUPPORTED_CHAINS.map((c) => existingByName.get(c.name) ?? c);
+  }, [chains]);
+
+  const allChains = useMemo(() => {
+    const names = new Set<string>();
+    return [...addedChains, ...baseChains].filter((c) => {
+      if (names.has(c.name)) return false;
+      names.add(c.name);
+      return true;
+    });
+  }, [baseChains, addedChains]);
+
   const allVaults = useMemo(() => [...vaults, ...addedVaults], [vaults, addedVaults]);
 
   const availableChains = useMemo(() => {
-    const used = new Set(allChains.map((c) => c.name));
-    return chains.filter((c) => !used.has(c.name));
-  }, [chains, allChains]);
+    const used = new Set(allChains.filter((c) => c.vaultCount > 0).map((c) => c.name));
+    return allChains.filter((c) => !used.has(c.name));
+  }, [allChains]);
 
   const vaultsByChain = useMemo(
     () =>

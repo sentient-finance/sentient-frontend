@@ -1,5 +1,4 @@
 import type { ChainInfo } from "@/lib/types/dashboard";
-import { NetworkIcon } from "@web3icons/react/dynamic";
 
 export function ChainSelectModal({
   chains,
@@ -54,12 +53,12 @@ export function ChainSelectModal({
                   disabled={disabled}
                   className="flex w-full items-center gap-3 rounded-xl border border-transparent px-3 py-2.5 text-left transition-colors hover:border-primary/30 hover:bg-primary/5 disabled:cursor-not-allowed disabled:opacity-40"
                 >
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted/20 overflow-hidden">
-                    <NetworkIcon
-                      chainId={chain.id}
-                      className="h-7 w-7"
-                    />
-                  </div>
+                  <span
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white"
+                    style={{ backgroundColor: chain.color }}
+                  >
+                    {chain.name[0]}
+                  </span>
                   <div className="flex-1">
                     <p className="font-medium leading-tight">{chain.name}</p>
                     <p className="text-xs text-muted">{chain.symbol}</p>
@@ -82,23 +81,11 @@ export function ChainSelectModal({
 
         {error && <p className="mt-3 text-xs text-red-400">{error}</p>}
 
-        {/* Loading overlay */}
         {isCreating && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 rounded-2xl bg-card/80 backdrop-blur-sm">
             <svg className="h-7 w-7 animate-spin text-primary" viewBox="0 0 24 24" fill="none">
-              <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="3"
-              />
-              <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-              />
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
             </svg>
             <p className="text-xs text-muted">Creating vault on-chain…</p>
           </div>

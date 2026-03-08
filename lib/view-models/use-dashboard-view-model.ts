@@ -47,7 +47,7 @@ export function useDashboardViewModel(refreshKey = 0) {
 
           const balanceParts = VAULT_TOKENS.map((token, i) => {
             const result = results[i];
-            if (result.status !== "success" || result.result === 0n) return null;
+            if (result.status !== "success" || result.result === BigInt(0)) return null;
             const num = parseFloat(formatUnits(result.result as bigint, token.decimals));
             const display =
               num >= 1000
