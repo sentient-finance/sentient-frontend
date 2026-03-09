@@ -2,40 +2,30 @@
 
 import type { VaultItem } from "@/lib/types/dashboard";
 import { shortAddress } from "@/lib/utils";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { Check, Copy, Power, X } from "lucide-react";
-import { useMemo, useState } from "react";
-import { STABLE_COINS, tabItems } from "./constants";
-import { StatusBadge } from "./status-badge";
+import { tabItems } from "./constants";
 import { ConfigTab } from "./tabs/config-tab";
 import { ConsoleTab } from "./tabs/console-tab";
 import { HistoryTab } from "./tabs/history-tab";
-import type { Tab } from "./types";
-import { parsePrices, parseTokens } from "./utils";
+import { useVaultPanelState, type Tab } from "./use-vault-panel-state";
 
 export function VaultPanel({ vault, onClose }: { vault: VaultItem; onClose: () => void }) {
-  const [activeTab, setActiveTab] = useState<Tab>("console");
-  const [isActive, setIsActive] = useState(vault.status === "active");
-  const [copied, setCopied] = useState(false);
-
-  // Form State
-  const initialPrices = useMemo(() => parsePrices(vault.rule), [vault.rule]);
-  const [prices, setPrices] = useState(initialPrices);
-  const [selection, setSelection] = useState({ symbol: "", source: "system" });
-
-  // Data Derivation
-  const vaultTokens = useMemo(() => parseTokens(vault.balance), [vault.balance]);
-  const vaultSymbols = useMemo(() => new Set(vaultTokens.map((t) => t.symbol)), [vaultTokens]);
-  const systemTokens = useMemo(() => {
-    const tokensInVault = vaultTokens.map((t) => t.symbol);
-    const extras = STABLE_COINS.filter((s) => !vaultSymbols.has(s));
-    return [...tokensInVault, ...extras];
-  }, [vaultTokens, vaultSymbols]);
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(vault.addr);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
-  };
+  const {
+    activeTab,
+    setActiveTab,
+    isActive,
+    setIsActive,
+    copied,
+    handleCopy,
+    prices,
+    setPrices,
+    selection,
+    setSelection,
+    vaultTokens,
+    vaultSymbols,
+    systemTokens,
+  } = useVaultPanelState(vault);
 
   return (
     <div className="fixed inset-0 z-50 flex">
@@ -52,7 +42,7 @@ export function VaultPanel({ vault, onClose }: { vault: VaultItem; onClose: () =
               </button>
             </div>
             <div className="mt-1 flex items-center gap-2">
-              <StatusBadge active={isActive} />
+              <StatusBadge status={isActive ? "active" : "inactive"} variant="dot" />
               <span className="text-xs text-muted">·</span>
               <span className="text-xs text-muted">{vault.chain}</span>
             </div>

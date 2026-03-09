@@ -1,4 +1,4 @@
-import { StatusChip } from "@/components/ui/status-chip";
+import { StatusBadge } from "@/components/ui/status-badge";
 import type { VaultItem } from "@/lib/types/dashboard";
 import { shortAddress } from "@/lib/utils";
 
@@ -16,7 +16,7 @@ export function VaultCard({
     >
       <div className="mb-3 flex items-center justify-between">
         <p className="font-mono text-sm font-semibold">{shortAddress(vault.addr)}</p>
-        <StatusChip status={vault.status} />
+        <StatusBadge status={vault.status} />
       </div>
       <div className="grid grid-cols-2 gap-2 text-xs">
         <div>

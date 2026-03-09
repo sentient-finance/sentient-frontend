@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { usePublicClient } from "wagmi";
 import { formatUnits } from "viem";
-import { TOKEN_DATA } from "@/components/dashboard/vault-panel/constants";
+import { TOKEN_DATA } from "@/lib/constants/tokens";
 
 export type TxType = "deposit" | "withdraw" | "swap";
 

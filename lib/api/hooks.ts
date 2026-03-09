@@ -5,13 +5,12 @@ import {
   listVaults,
   getVault,
   getVaultHistory,
-  getCCIPConfig,
   estimateCCIPFee,
   type ListVaultsParams,
   type GetVaultParams,
   type GetVaultHistoryParams,
-  type EstimateFeeRequest,
 } from "./client";
+import type { EstimateFeeRequest } from "./types";
 
 export const vaultKeys = {
   all: ["vaults"] as const,
@@ -42,7 +41,7 @@ export function useVaultDetail(address: string, params?: GetVaultParams) {
   });
 }
 
-export function useVaultHistory(
+export function useVaultAPIHistory(
   address: string,
   params?: GetVaultHistoryParams,
 ) {
@@ -54,18 +53,9 @@ export function useVaultHistory(
 }
 
 export const ccipKeys = {
-  config: ["ccip", "config"] as const,
   estimateFee: (params: EstimateFeeRequest) =>
     ["ccip", "estimate-fee", params] as const,
 };
-
-export function useCCIPConfig(options?: { enabled?: boolean }) {
-  return useQuery({
-    queryKey: ccipKeys.config,
-    queryFn: getCCIPConfig,
-    enabled: options?.enabled ?? true,
-  });
-}
 
 export function useCCIPEstimateFee(
   params: EstimateFeeRequest | null,

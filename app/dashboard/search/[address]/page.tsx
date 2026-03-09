@@ -6,7 +6,7 @@ import { AlertCircle } from "lucide-react";
 import { ROUTES } from "@/lib/constants/routes";
 import { shortAddress } from "@/lib/utils";
 import { VaultDetail } from "@/components/query/vault-detail";
-import { useVaultDetail, useVaultHistory } from "@/lib/api/hooks";
+import { useVaultDetail, useVaultAPIHistory } from "@/lib/api/hooks";
 
 function isValidAddress(addr: string): boolean {
   return /^0x[a-fA-F0-9]{40}$/.test(addr);
@@ -27,7 +27,7 @@ export default function SearchAddressPage({
     error: vaultError,
   } = useVaultDetail(decoded);
 
-  const { data: historyData } = useVaultHistory(decoded, {
+  const { data: historyData } = useVaultAPIHistory(decoded, {
     limit: 50,
     chain: vault?.chain_id,
   });
