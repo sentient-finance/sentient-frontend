@@ -41,7 +41,7 @@ jobs:
             exit 0
           fi
 
-          for BRANCH in $FEAT_BRANCHES; do
+          for BRANCH in "${FEAT_BRANCHES[@]}"; do
             FEAT_NAME=$(echo "$BRANCH" | sed 's|feat/||')
             echo ""
             echo "=== Processing $BRANCH ==="
