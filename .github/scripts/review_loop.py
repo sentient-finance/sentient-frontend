@@ -12,7 +12,7 @@ def run_review_loop():
     api_url = os.environ.get('MINIMAX_API_URL', 'https://api.minimax.io/anthropic')
     api_key = os.environ.get('ANTHROPIC_API_KEY', '')
     model = os.environ.get('MODEL', 'MiniMax-M2.7')
-    rounds = int(os.environ.get('ROUNDS', '3'))
+    rounds = int(os.environ.get('ROUNDS', '2'))
     base_branch = os.environ.get('BASE_BRANCH', '')
     commit_count = os.environ.get('COMMIT_COUNT', '0')
     github_token = os.environ.get('GITHUB_TOKEN', '')
