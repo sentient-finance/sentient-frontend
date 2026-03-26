@@ -132,10 +132,6 @@ def run_fixes_loop():
         if not fixable:
             log(f"⚠️ Auto-fix stopping early — error requires manual intervention: {reason}")
             log(f"::warning::Error cannot be fixed by code changes: {reason}")
-            # Still post a comment about the unfixable error
-            from utils import post_github_comment
-            comment = f"⚠️ **Auto-fix stopped early** — Error requires manual intervention: `{reason}`\n\nError details:\n```\n{errors_text[:1000]}\n```"
-            post_github_comment(repo, pr_number, comment, github_token)
             break
 
         log("Asking AI for fixes...")

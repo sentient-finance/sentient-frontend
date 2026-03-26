@@ -104,27 +104,4 @@ def extract_json(text):
     except json.JSONDecodeError as e:
         raise ValueError(f"Failed to parse extracted JSON: {e}")
 
-def post_github_comment(repo, pr_number, body, token):
-    """Post a comment to a GitHub PR."""
-    if not (token and repo and pr_number != '0'):
-        return
-    
-    try:
-        url = f"https://api.github.com/repos/{repo}/issues/{pr_number}/comments"
-        req = urllib.request.Request(
-            url,
-            data=json.dumps({"body": body}).encode(),
-            headers={
-                "Authorization": f"token {token}",
-                "Content-Type": "application/json",
-                "Accept": "application/vnd.github+json"
-            },
-            method="POST"
-        )
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            if resp.status == 201:
-                print("Comment posted successfully")
-            else:
-                print(f"Comment post returned {resp.status}")
-    except Exception as e:
-        print(f"Failed to post comment: {e}", file=sys.stderr)
+

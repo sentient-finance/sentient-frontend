@@ -7,7 +7,7 @@ import sys
 import re
 import uuid
 import urllib.request
-from utils import call_minimax_api, extract_json, post_github_comment
+from utils import call_minimax_api, extract_json
 
 LOG_FILE = '/tmp/review_output.log'
 
@@ -132,27 +132,8 @@ def run_review_loop():
                 changes_requested = True
 
             all_issues.extend(issues)
+            # Round summary tracking
             review_summary_parts.append(f"Round {round_num}: {summary[:100]}")
-
-            verdict = "&#9989; **Approved**" if approved and not changes_req else "&#9888; **Changes Requested**"
-            lines = [f"## MiniMax Code Review &#8212; Round {round_num}/{rounds}", "", "### Summary", summary, "", "### Verdict", verdict]
-            if praises:
-                lines.extend(["", "### Praises"])
-                for p in praises[:5]: lines.append(f"- {p[:200]}")
-            if issues:
-                lines.extend(["", "### Issues"])
-                for i in issues[:20]:
-                    icon = '&#128308;' if i.get('severity') == 'critical' else ('&#128993;' if i.get('severity') == 'major' else '&#129514;')
-                    loc = f"**{i['file']}{(':' + str(i['line'])) if i.get('line') else ''}** &#8212; " if i.get('file') else ""
-                    lines.append(f"{icon} {loc}{i.get('description', '')[:200]}")
-            if suggestions:
-                lines.extend(["", "### Suggestions"])
-                for s in suggestions[:20]:
-                    loc = f"**{s['file']}{(':' + str(s['line'])) if s.get('line') else ''}** &#8212; " if s.get('file') else ""
-                    lines.append(f"- {loc}{s.get('description', '')[:200]}")
-            
-            lines.extend(["", f"*Model: {model} | Run ID: `{run_id}` | Powered by MiniMax API*"])
-            post_github_comment(repo, pr_number, '\n'.join(lines), github_token)
 
         except Exception as e:
             log(f"Error in review round {round_num}: {e}")

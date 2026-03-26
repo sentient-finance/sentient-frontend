@@ -248,28 +248,11 @@ jobs:
           script: |
             const prNumber = '${{ needs.setup.outputs.pr_number }}';
             const reviewRounds = '${{ needs.review.outputs.review_rounds }}';
-            const reviewSummary = '${{ needs.review.outputs.review_summary }}';
             const fixRounds = '${{ needs.auto-fix.outputs.fix_rounds }}' || '0';
-            const allFixed = '${{ needs.auto-fix.outputs.all_fixed }}' === 'true';
-            const changesRequested = '${{ needs.review.outputs.changes_requested }}' === 'true';
 
             let md = `### 🤖 AI Activity Report\n\n`;
-            md += `**Summary**: ${reviewSummary || '*No summary available.*'}\n\n`;
-            md += `**Activity Log**:\n`;
             md += `- **Review Rounds**: ${reviewRounds}\n`;
             md += `- **Auto-Fix Rounds**: ${fixRounds}\n`;
-
-            if (parseInt(fixRounds) > 0) {
-              md += `- **Fix Status**: ${allFixed ? '✅ All identified issues resolved' : '⚠️ Some issues may require manual attention'}\n`;
-            }
-
-            md += `\n**Verification**: Base checks are handled by @ci. AI loop has verified the applied fixes.\n`;
-
-            if (allFixed || !changesRequested) {
-              md += `\n✅ **AI suggests this PR is ready for final human review.**`;
-            } else {
-              md += `\n❌ **AI encountered issues it could not fully resolve.** Please check the logs.`;
-            }
 
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
@@ -331,15 +314,3 @@ jobs:
             git push origin '${{ github.head_ref }}'
             echo "Approval commit pushed"
           fi
-
-      - name: Report approval
-        if: always()
-        uses: actions/github-script@v7
-        with:
-          script: |
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: ${{ needs.setup.outputs.pr_number }},
-              body: '✅ **MiniMax Code Review complete — approval commit pushed!**\n\n*MiniMax Code Review workflow*'
-            });
