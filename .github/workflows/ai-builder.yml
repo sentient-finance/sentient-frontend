@@ -1,0 +1,319 @@
+name: MiniMax Code Review
+
+on:
+  pull_request:
+    branches: [master, dev]
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+    inputs:
+      review_rounds:
+        description: "Number of review rounds"
+        required: false
+        default: "3"
+        type: string
+      model:
+        description: "MiniMax model to use"
+        required: false
+        default: "MiniMax-M2.7"
+        type: string
+      fix_until_success:
+        description: "Loop until all bugs are fixed (ignore ROUNDS)"
+        required: false
+        default: false
+        type: boolean
+
+env:
+  MINIMAX_API_URL: https://api.minimax.io/anthropic
+  DIFF_MAX_LINES: "2000"
+  API_TIMEOUT_SECONDS: "120"
+  API_MAX_RETRIES: "3"
+  API_RETRY_DELAY: "30"
+  DEFAULT_FIX_ROUNDS: "10"
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      is_feature_branch: ${{ steps.validate.outputs.is_feature_branch }}
+      pr_number: ${{ steps.pr_metadata.outputs.pr_number }}
+      base_branch: ${{ steps.pr_metadata.outputs.base_branch }}
+      commit_count: ${{ steps.pr_metadata.outputs.commit_count }}
+    steps:
+      - name: Validate feature branch
+        id: validate
+        run: |
+          BRANCH_NAME="${{ github.head_ref }}"
+          if [[ ! "$BRANCH_NAME" =~ ^feat/.* ]]; then
+            echo "::notice::Skipping — not a feature branch"
+            echo "is_feature_branch=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_feature_branch=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout PR branch
+        if: steps.validate.outputs.is_feature_branch == 'true'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Get PR metadata
+        if: steps.validate.outputs.is_feature_branch == 'true'
+        id: pr_metadata
+        uses: actions/github-script@v7
+        with:
+          result-encoding: string
+          script: |
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.pull_request.number
+            });
+            core.setOutput('pr_number', pr.number.toString());
+            core.setOutput('base_branch', pr.base.ref);
+            const { data: commits } = await github.rest.pulls.listCommits({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.pull_request.number
+            });
+            core.setOutput('commit_count', commits.length.toString());
+
+      - name: Generate diff
+        if: steps.validate.outputs.is_feature_branch == 'true'
+        id: diff
+        run: |
+          BASE_BRANCH="origin/${{ steps.pr_metadata.outputs.base_branch }}"
+          git diff "$BASE_BRANCH" --diff-filter=AM > pr_diff.patch 2>/dev/null || echo "" > pr_diff.patch
+          DIFF_LINES=$(wc -l < pr_diff.patch | tr -d ' ')
+          echo "Diff lines: $DIFF_LINES"
+          if [ "$DIFF_LINES" -gt ${{ env.DIFF_MAX_LINES }} ]; then
+            echo "::warning::Diff truncated to ${{ env.DIFF_MAX_LINES }} lines"
+            head -n ${{ env.DIFF_MAX_LINES }} pr_diff.patch > pr_diff.truncated.patch
+            mv pr_diff.truncated.patch pr_diff.patch
+          fi
+
+      - name: Persist PR number for review job
+        if: steps.validate.outputs.is_feature_branch == 'true'
+        run: |
+          echo "PR_NUMBER=${{ steps.pr_metadata.outputs.pr_number }}" >> "$GITHUB_ENV"
+
+  review:
+    needs: setup
+    if: needs.setup.outputs.is_feature_branch == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    outputs:
+      all_rounds_complete: ${{ steps.review_loop.outputs.all_rounds_complete }}
+      changes_requested: ${{ steps.review_loop.outputs.changes_requested }}
+      review_summary: ${{ steps.review_loop.outputs.review_summary }}
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Restore diff
+        id: restore_diff
+        env:
+          BASE_BRANCH: ${{ needs.setup.outputs.base_branch }}
+        run: |
+          git diff "origin/$BASE_BRANCH" --diff-filter=AM > pr_diff.patch 2>/dev/null || echo "" > pr_diff.patch
+
+      - name: Run MiniMax Review Loop
+        id: review_loop
+        env:
+          ROUNDS: ${{ github.event.inputs.review_rounds || '3' }}
+          MODEL: ${{ github.event.inputs.model || 'MiniMax-M2.7' }}
+          BASE_BRANCH: ${{ needs.setup.outputs.base_branch }}
+          COMMIT_COUNT: ${{ needs.setup.outputs.commit_count }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: python3 .github/scripts/review_loop.py
+
+  auto-fix:
+    needs: [setup, review]
+    if: needs.setup.outputs.is_feature_branch == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Run MiniMax Fix Loop
+        id: fix_loop
+        env:
+          ROUNDS: ${{ github.event.inputs.review_rounds || env.DEFAULT_FIX_ROUNDS }}
+          FIX_UNTIL_SUCCESS: ${{ github.event.inputs.fix_until_success || 'false' }}
+          MODEL: ${{ github.event.inputs.model || 'MiniMax-M2.7' }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ needs.setup.outputs.pr_number }}
+        run: python3 .github/scripts/fix_loop.py
+
+  final-checks:
+    needs: [setup, review, auto-fix]
+    if: always() && needs.setup.outputs.is_feature_branch == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      lint_passed: ${{ steps.checks.outputs.lint_passed }}
+      format_passed: ${{ steps.checks.outputs.format_passed }}
+      typecheck_passed: ${{ steps.checks.outputs.typecheck_passed }}
+      build_passed: ${{ steps.checks.outputs.build_passed }}
+      all_passed: ${{ steps.checks.outputs.all_passed }}
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Run checks
+        id: checks
+        run: |
+          LINT_RESULT=0
+          FORMAT_RESULT=0
+          TYPECHECK_RESULT=0
+          BUILD_RESULT=0
+
+          echo "--- Lint ---"
+          bun run lint || LINT_RESULT=1
+          echo "lint_passed=$([ "$LINT_RESULT" = "0" ] && echo "true" || echo "false")" >> "$GITHUB_OUTPUT"
+
+          echo "--- Format check ---"
+          bun run format:check || FORMAT_RESULT=1
+          echo "format_passed=$([ "$FORMAT_RESULT" = "0" ] && echo "true" || echo "false")" >> "$GITHUB_OUTPUT"
+
+          echo "--- Type check ---"
+          bun run type-check || TYPECHECK_RESULT=1
+          echo "typecheck_passed=$([ "$TYPECHECK_RESULT" = "0" ] && echo "true" || echo "false")" >> "$GITHUB_OUTPUT"
+
+          echo "--- Build ---"
+          bun run build || BUILD_RESULT=1
+          echo "build_passed=$([ "$BUILD_RESULT" = "0" ] && echo "true" || echo "false")" >> "$GITHUB_OUTPUT"
+
+          if [ "$LINT_RESULT" = "0" ] && [ "$FORMAT_RESULT" = "0" ] && [ "$TYPECHECK_RESULT" = "0" ] && [ "$BUILD_RESULT" = "0" ]; then
+            echo "all_passed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "all_passed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Post final status comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = ${{ needs.setup.outputs.pr_number }};
+            const allPassed = '${{ needs.final-checks.outputs.all_passed }}' === 'true';
+            const changesRequested = '${{ needs.review.outputs.changes_requested }}' === 'true';
+
+            const checks = {
+              lint: '${{ steps.checks.outputs.lint_passed }}' === 'true',
+              format: '${{ steps.checks.outputs.format_passed }}' === 'true',
+              typecheck: '${{ steps.checks.outputs.typecheck_passed }}' === 'true',
+              build: '${{ steps.checks.outputs.build_passed }}' === 'true'
+            };
+
+            let verdict;
+            if (allPassed && !changesRequested) {
+              verdict = '✅ **All checks passed!** Auto-committing approval...';
+            } else if (allPassed && changesRequested) {
+              verdict = '⚠️ **Checks passed but changes were requested in review.** Please address the feedback before merging.';
+            } else {
+              verdict = '❌ **Some checks failed.** Please address the issues above.';
+            }
+
+            const comment = [
+              `## Final Checks ${allPassed ? '✅ All Passed' : '❌ Some Failed'}`,
+              '',
+              '| Check | Status |',
+              '|-------|--------|',
+              `| Lint | ${checks.lint ? '✅' : '❌'} |`,
+              `| Format | ${checks.format ? '✅' : '❌'} |`,
+              `| Type Check | ${checks.typecheck ? '✅' : '❌'} |`,
+              `| Build | ${checks.build ? '✅' : '❌'} |`,
+              '',
+              verdict,
+              '',
+              '*MiniMax Code Review workflow*'
+            ].join('\n');
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              body: comment
+            });
+
+  auto-commit:
+    needs: [setup, review, auto-fix, final-checks]
+    if: needs.final-checks.outputs.all_passed == 'true' && needs.review.outputs.changes_requested != 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Create approval commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+
+          if git diff --cached --quiet; then
+            echo "Nothing to commit"
+          else
+            SUMMARY='${{ needs.review.outputs.review_summary }}'
+            git commit -m "ci: MiniMax code review approved [skip ci] - ${SUMMARY:0:200}" -m "Co-authored-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
+            git push origin '${{ github.head_ref }}'
+            echo "Approval commit pushed"
+          fi
+
+      - name: Report approval
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: ${{ needs.setup.outputs.pr_number }},
+              body: '✅ **MiniMax Code Review complete — approval commit pushed!**\n\n*MiniMax Code Review workflow*'
+            });
