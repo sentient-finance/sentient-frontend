@@ -134,7 +134,7 @@ def run_review_loop():
     review_summary = " ".join(review_summary_parts)[:500]
     out_file = os.environ.get('GITHUB_OUTPUT', '/tmp/gha_output')
     with open(out_file, 'a') as f:
-        f.write(f"all_rounds_complete=true\nchanges_requested={str(changes_requested).lower()}\nreview_summary={review_summary}\n")
+        f.write(f"all_rounds_complete=true\nchanges_requested={str(changes_requested).lower()}\nreview_summary={review_summary}\nreview_rounds={rounds}\n")
 
 if __name__ == '__main__':
     run_review_loop()

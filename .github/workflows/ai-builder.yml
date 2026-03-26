@@ -111,6 +111,7 @@ jobs:
       all_rounds_complete: ${{ steps.review_loop.outputs.all_rounds_complete }}
       changes_requested: ${{ steps.review_loop.outputs.changes_requested }}
       review_summary: ${{ steps.review_loop.outputs.review_summary }}
+      review_rounds: ${{ steps.review_loop.outputs.review_rounds }}
     steps:
       - name: Checkout PR branch
         uses: actions/checkout@v4
@@ -279,6 +280,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      pull-requests: write
     steps:
       - name: Checkout PR branch
         uses: actions/checkout@v4
@@ -301,7 +303,8 @@ jobs:
             echo "Nothing to commit"
           else
             SUMMARY='${{ needs.review.outputs.review_summary }}'
-            git commit -m "ci: MiniMax code review approved [skip ci] - ${SUMMARY:0:200}" -m "Co-authored-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
+            ROUNDS='${{ needs.review.outputs.review_rounds }}'
+            git commit -m "ci: MiniMax code review approved [skip ci] - (${ROUNDS} rounds) - ${SUMMARY:0:200}" -m "Co-authored-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
             git push origin '${{ github.head_ref }}'
             echo "Approval commit pushed"
           fi
