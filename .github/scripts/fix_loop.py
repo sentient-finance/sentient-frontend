@@ -112,7 +112,12 @@ def run_fixes_loop():
         except Exception as e:
             print(f"Error in fix loop round {round_num}: {e}")
 
+    all_passed = all(rc == 0 for rc in [lint_rc, format_rc, type_rc, build_rc])
     run_command("git push")
+
+    out_file = os.environ.get('GITHUB_OUTPUT', '/tmp/gha_output')
+    with open(out_file, 'a') as f:
+        f.write(f"all_fixed={str(all_passed).lower()}\nfix_rounds={round_num}\n")
 
 if __name__ == '__main__':
     run_fixes_loop()
