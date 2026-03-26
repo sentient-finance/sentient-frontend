@@ -5,8 +5,29 @@ import json
 import os
 import sys
 import re
+import uuid
 import urllib.request
 from utils import call_minimax_api, extract_json, post_github_comment
+
+LOG_FILE = '/tmp/review_output.log'
+
+def log(msg):
+    """Log to both stdout and log file."""
+    print(msg, file=sys.stdout)
+    try:
+        with open(LOG_FILE, 'a') as f:
+            f.write(msg + '\n')
+    except: pass
+
+def set_output(name: str, value: str):
+    """Ghi output an toàn cho GitHub Actions (hỗ trợ multiline)."""
+    delimiter = f'ghadelimiter_{uuid.uuid4().hex}'
+    output_path = os.environ.get('GITHUB_OUTPUT', '/tmp/gha_output')
+    with open(output_path, 'a') as f:
+        f.write(f'{name}<<{delimiter}\n')
+        f.write(f'{value}\n')
+        f.write(f'{delimiter}\n')
+    log(f"Output set: {name}={value[:100] if len(value) > 100 else value}...")
 
 def run_review_loop():
     api_url = os.environ.get('MINIMAX_API_URL', 'https://api.minimax.io/anthropic')
@@ -18,12 +39,17 @@ def run_review_loop():
     github_token = os.environ.get('GITHUB_TOKEN', '')
     repo = os.environ.get('GITHUB_REPOSITORY', '')
     pr_number = os.environ.get('PR_NUMBER', '0')
+    run_id = os.environ.get('RUN_ID', 'unknown')
+
+    # Clear log file
+    open(LOG_FILE, 'w').close()
+    log(f"Starting review loop for PR #{pr_number}, rounds={rounds}, run_id={run_id}")
 
     try:
         with open('pr_diff.patch', 'r') as f:
             diff_content = f.read()
     except Exception as e:
-        print(f"Warning: Could not read diff: {e}")
+        log(f"Warning: Could not read diff: {e}")
         diff_content = ""
 
     try:
@@ -38,7 +64,7 @@ def run_review_loop():
         with urllib.request.urlopen(req, timeout=10) as resp:
             pr_data = json.loads(resp.read())
     except Exception as e:
-        print(f"Warning: Could not fetch PR data: {e}", file=sys.stderr)
+        log(f"Warning: Could not fetch PR data: {e}")
         pr_data = {"title": "PR", "body": "", "user": {"login": "unknown"}}
 
     pr_title = pr_data.get('title', 'No title')[:500]
@@ -62,7 +88,7 @@ def run_review_loop():
     review_summary_parts = []
 
     for round_num in range(1, rounds + 1):
-        print(f"\n{'='*50}\nReview Round {round_num} of {rounds}\n{'='*50}")
+        log(f"\n{'='*50}\nReview Round {round_num} of {rounds}\n{'='*50}")
 
         prev_feedback = ""
         if all_issues:
@@ -125,16 +151,22 @@ def run_review_loop():
                     loc = f"**{s['file']}{(':' + str(s['line'])) if s.get('line') else ''}** &#8212; " if s.get('file') else ""
                     lines.append(f"- {loc}{s.get('description', '')[:200]}")
             
-            lines.extend(["", f"*Model: {model} | Powered by MiniMax API*"])
+            lines.extend(["", f"*Model: {model} | Run ID: `{run_id}` | Powered by MiniMax API*"])
             post_github_comment(repo, pr_number, '\n'.join(lines), github_token)
 
         except Exception as e:
-            print(f"Error in review round {round_num}: {e}")
+            log(f"Error in review round {round_num}: {e}")
+            import traceback
+            log(traceback.format_exc())
 
     review_summary = " ".join(review_summary_parts)[:500]
-    out_file = os.environ.get('GITHUB_OUTPUT', '/tmp/gha_output')
-    with open(out_file, 'a') as f:
-        f.write(f"all_rounds_complete=true\nchanges_requested={str(changes_requested).lower()}\nreview_summary={review_summary}\nreview_rounds={rounds}\n")
+    log(f"\nReview complete. summary={review_summary[:100]}, changes_requested={changes_requested}")
+    
+    # Write outputs using heredoc syntax for multiline support
+    set_output('all_rounds_complete', 'true')
+    set_output('changes_requested', str(changes_requested).lower())
+    set_output('review_summary', review_summary)
+    set_output('review_rounds', str(rounds))
 
 if __name__ == '__main__':
     run_review_loop()
