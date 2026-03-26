@@ -31,7 +31,7 @@ def log(msg):
     except: pass
 
 def set_output(name: str, value: str):
-    """Ghi output an toàn cho GitHub Actions (hỗ trợ multiline)."""
+    """Safely write output for GitHub Actions (multiline support)."""
     delimiter = f'ghadelimiter_{uuid.uuid4().hex}'
     output_path = os.environ.get('GITHUB_OUTPUT', '/tmp/gha_output')
     with open(output_path, 'a') as f:
