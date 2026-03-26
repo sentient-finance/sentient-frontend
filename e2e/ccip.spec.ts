@@ -1,39 +1,54 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures";
+import { MOCK_WALLET_ADDRESS } from "./utils/mock-wallet";
 
 test.describe("CCIP Feature", () => {
   test.setTimeout(60000);
 
-  test("ccip page loads", async ({ page }) => {
-    await page.goto("/dashboard/ccip");
-    await page.waitForLoadState("domcontentloaded");
-    await expect(page).toBeVisible();
+  test.beforeEach(async ({ walletPage }) => {
+    // Navigate to CCIP page and wait for it to load
+    await walletPage.goto("/dashboard/ccip");
+    await walletPage.waitForLoadState("networkidle");
   });
 
-  test("ccip page has expected content structure", async ({ page }) => {
-    await page.goto("/dashboard/ccip");
-    await page.waitForLoadState("domcontentloaded");
+  test("ccip page loads with mock wallet connected", async ({ walletPage }) => {
+    // Check if the mock address or a truncated version of it is visible
+    // RainbowKit usually shows truncated address e.g. 0x7099...79C8
+    const truncatedAddress = `${MOCK_WALLET_ADDRESS.slice(0, 6)}...${MOCK_WALLET_ADDRESS.slice(-4)}`;
+    await expect(walletPage.getByText(truncatedAddress)).toBeVisible({ timeout: 15000 });
 
-    // Page should show either wallet connect prompt or CCIP panel
-    // Give it time to load
-    await page.waitForTimeout(2000);
+    const header = walletPage.getByText(/Config CCIP Cross-Chain/i);
+    await expect(header).toBeVisible();
   });
 
-  test("ccip page has shield icon heading", async ({ page }) => {
-    await page.goto("/dashboard/ccip");
-    await page.waitForLoadState("domcontentloaded");
+  test("can interact with CCIP form fields", async ({ walletPage }) => {
+    // Wait for the panel to be in "configured" state or "setup" state
+    // For this test, we assume it might show the panel if already configured on the mock chain
 
-    // The CCIP page has a Shield icon in the header
-    // Look for the header text
-    const header = page.getByText(/Config CCIP Cross-Chain/i);
-    await expect(header).toBeVisible({ timeout: 10000 });
+    const amountInput = walletPage.getByTestId("shield-amount-input");
+    if (await amountInput.isVisible()) {
+      await amountInput.fill("1.5");
+      await expect(amountInput).toHaveValue("1.5");
+
+      const receiverInput = walletPage.getByTestId("shield-receiver-input");
+      await receiverInput.fill(MOCK_WALLET_ADDRESS);
+      await expect(receiverInput).toHaveValue(MOCK_WALLET_ADDRESS);
+
+      const destSelect = walletPage.getByTestId("dest-chain-select");
+      await destSelect.selectOption({ label: "Ethereum Sepolia" });
+      await expect(destSelect).toHaveValue(/0x/); // Selector values are bigint strings e.g. "16015286601757825753"
+    } else {
+      // If in setup mode, check for setup fields
+      const routerInput = walletPage.locator("input[placeholder*='0x']");
+      await expect(routerInput).toBeVisible();
+    }
   });
 
-  test("navigation to ccip page works", async ({ page }) => {
-    await page.goto("/");
-    await page.waitForLoadState("networkidle");
-
-    // Navigate directly to CCIP page
-    await page.goto("/dashboard/ccip");
-    await expect(page).toHaveURL(/\/dashboard\/ccip/, { timeout: 15000 });
+  test("execute button is disabled when fields are empty", async ({ walletPage }) => {
+    const amountInput = walletPage.getByTestId("shield-amount-input");
+    if (await amountInput.isVisible()) {
+      await amountInput.fill("");
+      const executeBtn = walletPage.getByTestId("execute-shield-button");
+      await expect(executeBtn).toBeDisabled();
+    }
   });
 });
