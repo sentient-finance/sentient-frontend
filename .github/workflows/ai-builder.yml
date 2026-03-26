@@ -22,6 +22,10 @@ on:
         default: false
         type: boolean
 
+concurrency:
+  group: ai-builder-${{ github.head_ref }}
+  cancel-in-progress: true
+
 env:
   MINIMAX_API_URL: https://api.minimax.io/anthropic
   DIFF_MAX_LINES: "2000"
@@ -33,6 +37,7 @@ env:
 jobs:
   setup:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     permissions:
       contents: read
       pull-requests: read
@@ -41,6 +46,7 @@ jobs:
       pr_number: ${{ steps.pr_metadata.outputs.pr_number }}
       base_branch: ${{ steps.pr_metadata.outputs.base_branch }}
       commit_count: ${{ steps.pr_metadata.outputs.commit_count }}
+      run_id: ${{ github.run_id }}
     steps:
       - name: Validate feature branch
         id: validate
@@ -81,12 +87,17 @@ jobs:
             });
             core.setOutput('commit_count', commits.length.toString());
 
-      - name: Generate diff
+      - name: Generate diff (smart filter)
         if: steps.validate.outputs.is_feature_branch == 'true'
         id: diff
         run: |
           BASE_BRANCH="origin/${{ steps.pr_metadata.outputs.base_branch }}"
-          git diff "$BASE_BRANCH" --diff-filter=AM > pr_diff.patch 2>/dev/null || echo "" > pr_diff.patch
+          # Prioritize important files, filter out test/snap files
+          git diff "$BASE_BRANCH" --diff-filter=AM \
+            -- '*.ts' '*.tsx' '*.js' '*.jsx' \
+            ':!*.test.*' ':!e2e/**' ':!*.spec.*' ':!*.snap' \
+            > pr_diff.patch 2>/dev/null || echo "" > pr_diff.patch
+
           DIFF_LINES=$(wc -l < pr_diff.patch | tr -d ' ')
           echo "Diff lines: $DIFF_LINES"
           if [ "$DIFF_LINES" -gt ${{ env.DIFF_MAX_LINES }} ]; then
@@ -104,6 +115,7 @@ jobs:
     needs: setup
     if: needs.setup.outputs.is_feature_branch == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
       pull-requests: write
@@ -124,7 +136,10 @@ jobs:
         env:
           BASE_BRANCH: ${{ needs.setup.outputs.base_branch }}
         run: |
-          git diff "origin/$BASE_BRANCH" --diff-filter=AM > pr_diff.patch 2>/dev/null || echo "" > pr_diff.patch
+          git diff "origin/$BASE_BRANCH" --diff-filter=AM \
+            -- '*.ts' '*.tsx' '*.js' '*.jsx' \
+            ':!*.test.*' ':!e2e/**' ':!*.spec.*' ':!*.snap' \
+            > pr_diff.patch 2>/dev/null || echo "" > pr_diff.patch
 
       - name: Run MiniMax Review Loop
         id: review_loop
@@ -134,12 +149,25 @@ jobs:
           BASE_BRANCH: ${{ needs.setup.outputs.base_branch }}
           COMMIT_COUNT: ${{ needs.setup.outputs.commit_count }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ needs.setup.outputs.pr_number }}
+          RUN_ID: ${{ needs.setup.outputs.run_id }}
         run: python3 .github/scripts/review_loop.py
+
+      - name: Upload AI review logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-review-logs-${{ github.run_number }}
+          path: /tmp/review_output.log
+          retention-days: 7
 
   auto-fix:
     needs: [setup, review]
     if: needs.setup.outputs.is_feature_branch == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: write
       pull-requests: write
@@ -159,8 +187,22 @@ jobs:
         with:
           bun-version: latest
 
+      - name: Cache bun dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lockb') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
       - name: Install dependencies
-        run: bun install
+        run: bun install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: |
+          if [ -f 'playwright.config.ts' ] || [ -f 'playwright.config.js' ]; then
+            npx playwright install --with-deps chromium
+          fi
 
       - name: Run MiniMax Fix Loop
         id: fix_loop
@@ -171,12 +213,23 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ needs.setup.outputs.pr_number }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_OUTPUT: ${{ github.output_path }}
         run: python3 .github/scripts/fix_loop.py
+
+      - name: Upload AI fix logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-fix-logs-${{ github.run_number }}
+          path: /tmp/fix_output.log
+          retention-days: 7
 
   final-checks:
     needs: [setup, review, auto-fix]
     if: always() && needs.setup.outputs.is_feature_branch == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: write
       pull-requests: write
@@ -198,8 +251,22 @@ jobs:
         with:
           bun-version: latest
 
+      - name: Cache bun dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lockb') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
       - name: Install dependencies
-        run: bun install
+        run: bun install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: |
+          if [ -f 'playwright.config.ts' ] || [ -f 'playwright.config.js' ]; then
+            npx playwright install --with-deps chromium
+          fi
 
       - name: Run checks
         id: checks
@@ -231,12 +298,13 @@ jobs:
             echo "all_passed=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Post final status comment
+      - name: Post final status comment (update or create)
         if: always()
         uses: actions/github-script@v7
         with:
           script: |
             const prNumber = '${{ needs.setup.outputs.pr_number }}';
+            const runId = '${{ needs.setup.outputs.run_id }}';
             const allPassed = '${{ steps.checks.outputs.all_passed }}' === 'true';
             const changesRequested = '${{ needs.review.outputs.changes_requested }}' === 'true';
 
@@ -277,19 +345,46 @@ jobs:
               md += `❌ **Issues detected.** Please check the logs and address the failing steps above.`;
             }
 
-            md += `\n\n*Powered by MiniMax AI Builder*`;
+            md += `\n\n*Run ID: \`${runId}\` | Powered by MiniMax AI Builder*`;
 
-            await github.rest.issues.createComment({
+            // Check for existing bot comment with same run ID to avoid duplicates
+            const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              issue_number: parseInt(prNumber),
-              body: md
+              issue_number: parseInt(prNumber)
             });
+
+            const botComment = comments.find(c => 
+              c.user.type === 'Bot' && 
+              c.body.includes('Final Quality Report') && 
+              c.body.includes(runId)
+            );
+
+            if (botComment) {
+              // Update existing comment
+              await github.rest.issues.updateComment({
+                comment_id: botComment.id,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: md
+              });
+              console.log('Updated existing comment');
+            } else {
+              // Create new comment
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: parseInt(prNumber),
+                body: md
+              });
+              console.log('Created new comment');
+            }
 
   auto-commit:
     needs: [setup, review, auto-fix, final-checks]
-    if: needs.final-checks.outputs.all_passed == 'true' && needs.review.outputs.changes_requested != 'true'
+    if: needs.final-checks.outputs.all_passed == 'true' && ( needs.review.outputs.changes_requested != 'true' || needs.auto-fix.outputs.all_fixed == 'true' )
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     permissions:
       contents: write
       pull-requests: write
