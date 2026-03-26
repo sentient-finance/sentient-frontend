@@ -5,6 +5,7 @@ import json
 import os
 import sys
 import re
+import time
 import uuid
 from utils import run_command, call_minimax_api, extract_json, sanitize_path
 
@@ -31,7 +32,7 @@ def log(msg):
     except: pass
 
 def set_output(name: str, value: str):
-    """Ghi output an toàn cho GitHub Actions (hỗ trợ multiline)."""
+    """Safely write output for GitHub Actions (multiline support)."""
     delimiter = f'ghadelimiter_{uuid.uuid4().hex}'
     output_path = os.environ.get('GITHUB_OUTPUT', '/tmp/gha_output')
     with open(output_path, 'a') as f:
@@ -91,23 +92,38 @@ def run_fixes_loop():
     for round_num in range(1, rounds + 1):
         fix_rounds_done = round_num
         log(f"\n{'='*50}\nFix Round {round_num} of {rounds}\n{'='*50}")
+        
+        round_start_time = time.time()
+        all_errors = []
+        
+        # Optimized check sequence: format -> lint -> type-check -> build
+        # Run sequentially with early exit for faster feedback
+        checks = [
+            ("Formatting", "bun run format:check"),
+            ("Linting", "bun run lint"),
+            ("Type Checking", "bun run type-check"),
+            ("Building", "bun run build")
+        ]
+        
+        passed_all = True
+        for name, cmd in checks:
+            log(f"Running {name}...")
+            start = time.time()
+            out, err, rc = run_command(cmd)
+            duration = time.time() - start
+            log(f"  Result: {'PASS' if rc == 0 else 'FAIL'} ({duration:.1f}s)")
+            
+            if rc != 0:
+                all_errors.append(f"{name} errors:\n{out}\n{err}")
+                passed_all = False
+                # Early exit: Stop running more expensive checks if an earlier one failed
+                log(f"  Stopping remaining checks for this round due to {name} failure.")
+                break
 
-        log("Running checks...")
-        lint_out, lint_err, lint_rc = run_command("bun run lint")
-        format_out, format_err, format_rc = run_command("bun run format:check")
-        type_out, type_err, type_rc = run_command("bun run type-check")
-        build_out, build_err, build_rc = run_command("bun run build")
-
-        if all(rc == 0 for rc in [lint_rc, format_rc, type_rc, build_rc]):
+        if passed_all:
             log("✅ All checks passed! No further fixes needed.")
             all_passed = True
             break
-        
-        all_errors = []
-        if lint_rc != 0: all_errors.append(f"Lint errors:\n{lint_out}\n{lint_err}")
-        if format_rc != 0: all_errors.append(f"Format errors:\n{format_out}\n{format_err}")
-        if type_rc != 0: all_errors.append(f"Type check errors:\n{type_out}\n{type_err}")
-        if build_rc != 0: all_errors.append(f"Build errors:\n{build_out}\n{build_err}")
         
         errors_text = "\n\n".join(all_errors)[:8000]
 
@@ -123,6 +139,7 @@ def run_fixes_loop():
             break
 
         log("Asking AI for fixes...")
+        ai_start = time.time()
         files_to_fix = set()
         matches = re.findall(r'([a-zA-Z0-9\/\._\-]+\.(?:ts|tsx|js|jsx|css|json))', errors_text)
         for m in matches:
@@ -156,6 +173,7 @@ def run_fixes_loop():
 
         try:
             response_body, _ = call_minimax_api(payload, api_key, api_url)
+            log(f"  AI response received ({time.time() - ai_start:.1f}s)")
             fix_data = extract_json(response_body)
             
             applied = False
@@ -165,29 +183,29 @@ def run_fixes_loop():
                 if fpath and fcontent:
                     try:
                         safe_path = sanitize_path(fpath)
-                        log(f"Applying fix to {fpath}...")
+                        log(f"  Applying fix to {fpath}...")
                         with open(safe_path, 'w') as f:
                             f.write(fcontent)
                         applied = True
                     except ValueError as ve:
-                        log(f"Blocked fix for {fpath}: {ve}")
+                        log(f"  Blocked fix for {fpath}: {ve}")
 
             if applied:
+                log("  Committing fixes...")
                 run_command("git config user.name 'github-actions[bot]'")
                 run_command("git config user.email 'github-actions[bot]@users.noreply.github.com'")
                 run_command("git add -A")
                 run_command(f"git commit -m 'ci: auto-fix technical errors (round {round_num}) [skip ci]'")
             else:
-                log("No fixes applied in this round.")
+                log("  No fixes applied in this round.")
 
         except Exception as e:
-            log(f"Error in fix loop round {round_num}: {e}")
-            import traceback
-            log(traceback.format_exc())
+            log(f"  Error in fix loop round {round_num}: {e}")
+            
+        log(f"Round {round_num} completed in {time.time() - round_start_time:.1f}s")
 
     log(f"\nFix loop complete. fix_rounds={fix_rounds_done}, all_passed={all_passed}")
     
-    # Push even if not all passed - commits should still be pushed
     if not all_passed:
         log("Not all checks passed, but pushing fixes for review...")
     
