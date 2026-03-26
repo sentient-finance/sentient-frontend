@@ -249,7 +249,7 @@ jobs:
 
             const reviewSummary = '${{ needs.review.outputs.review_summary }}';
             const reviewRounds = '${{ needs.review.outputs.review_rounds }}';
-            const fixRounds = '${{ needs.auto-fix.outputs.fix_rounds || "0" }}';
+            const fixRounds = '${{ needs.auto-fix.outputs.fix_rounds }}' || '0';
             const fixSuccess = '${{ needs.auto-fix.outputs.all_fixed }}' === 'true';
 
             let md = `## 🛠️ Final Quality Report: ${allPassed ? 'Passed ✅' : 'Failed ❌'}\n\n`;
