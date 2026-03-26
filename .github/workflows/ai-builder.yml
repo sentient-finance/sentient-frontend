@@ -239,21 +239,21 @@ jobs:
             const prNumber = '${{ needs.setup.outputs.pr_number }}';
             const allPassed = '${{ steps.checks.outputs.all_passed }}' === 'true';
             const changesRequested = '${{ needs.review.outputs.changes_requested }}' === 'true';
-            
+
             const checks = {
               lint: '${{ steps.checks.outputs.lint_passed }}' === 'true',
               format: '${{ steps.checks.outputs.format_passed }}' === 'true',
               typecheck: '${{ steps.checks.outputs.typecheck_passed }}' === 'true',
               build: '${{ steps.checks.outputs.build_passed }}' === 'true'
             };
-            
+
             const reviewSummary = '${{ needs.review.outputs.review_summary }}';
             const reviewRounds = '${{ needs.review.outputs.review_rounds }}';
             const fixRounds = '${{ needs.auto-fix.outputs.fix_rounds || "0" }}';
             const fixSuccess = '${{ needs.auto-fix.outputs.all_fixed }}' === 'true';
 
             let md = `## 🛠️ Final Quality Report: ${allPassed ? 'Passed ✅' : 'Failed ❌'}\n\n`;
-            
+
             md += `### 🔍 Technical Checks\n| Check | Status |\n|---|---|\n`;
             md += `| **Lint** | ${checks.lint ? '✅' : '❌'} |\n`;
             md += `| **Format** | ${checks.format ? '✅' : '❌'} |\n`;
@@ -266,9 +266,9 @@ jobs:
             if (parseInt(fixRounds) > 0) {
               md += `- **Auto-Fix Result:** ${fixSuccess ? '✅ Fully Resolved' : '⚠️ Partially Resolved'}\n`;
             }
-            
+
             md += `\n### 📝 Review Summary\n> ${reviewSummary || '*No summary available.*'}\n\n`;
-            
+
             if (allPassed && !changesRequested) {
               md += `✅ **Build verified - ready for merge!**`;
             } else if (allPassed && changesRequested) {
