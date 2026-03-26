@@ -55,6 +55,7 @@ bun run test:e2e --project=chromium
 ## Configuration
 
 See `playwright.config.ts` for test configuration including:
+
 - Base URL: `http://localhost:3000`
 - Timeout: 30 seconds
 - Retries: 1
