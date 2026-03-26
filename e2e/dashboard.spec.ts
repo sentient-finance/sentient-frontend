@@ -37,7 +37,7 @@ test.describe("Dashboard Page", () => {
 
     // RainbowKit connect button should be present
     const connectBtn = page.locator("button[class*='connect'], [class*='rainbow']").first();
-    // May or may not be visible depending on wallet state, but shouldn't crash
-    await page.waitForTimeout(2000);
+    // Assert element exists in DOM (may not be visible if wallet already connected)
+    await expect(connectBtn).toHaveCount(1, { timeout: 5000 });
   });
 });
