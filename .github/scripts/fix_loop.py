@@ -12,14 +12,14 @@ LOG_FILE = '/tmp/fix_output.log'
 
 # Patterns that indicate errors which CANNOT be fixed by code changes
 UNFIXABLE_PATTERNS = [
-    ('Cannot find type definitions', 'Thiếu @types package hoặc tsconfig'),
-    ('Cannot find module', 'Missing dependency trong package.json hoặc chưa chạy install'),
-    ('ENOENT', 'File hoặc directory không tồn tại trên hệ thống'),
-    ('secret.*not set', 'Missing GitHub secret - cần thêm secret trong repo settings'),
-    ('Error: Input required', 'Thiếu required input/argument cho workflow'),
-    ('not found globally', 'Package chưa được install hoặc thiếu path'),
-    ('permission denied', 'Không có quyền truy cập file/directory'),
-    ('Resource not found', 'Tài nguyên không tồn tại trên hệ thống'),
+    ('Cannot find type definitions', 'Missing @types package or tsconfig'),
+    ('Cannot find module', 'Missing dependency in package.json or install not run'),
+    ('ENOENT', 'File or directory does not exist on the system'),
+    ('secret.*not set', 'Missing GitHub secret - need to add secret in repo settings'),
+    ('Error: Input required', 'Missing required input/argument for workflow'),
+    ('not found globally', 'Package not installed or missing path'),
+    ('permission denied', 'No permission to access file/directory'),
+    ('Resource not found', 'Resource does not exist on the system'),
 ]
 
 def log(msg):
@@ -114,11 +114,11 @@ def run_fixes_loop():
         # B7: Check if error is fixable by code changes
         fixable, reason = is_fixable_error(errors_text)
         if not fixable:
-            log(f"⚠️ Auto-fix dừng sớm — lỗi cần can thiệp thủ công: {reason}")
-            log(f"::warning::Lỗi không thể fix bằng code: {reason}")
+            log(f"⚠️ Auto-fix stopping early — error requires manual intervention: {reason}")
+            log(f"::warning::Error cannot be fixed by code changes: {reason}")
             # Still post a comment about the unfixable error
             from utils import post_github_comment
-            comment = f"⚠️ **Auto-fix dừng sớm** — Lỗi cần can thiệp thủ công: `{reason}`\n\nError details:\n```\n{errors_text[:1000]}\n```"
+            comment = f"⚠️ **Auto-fix stopped early** — Error requires manual intervention: `{reason}`\n\nError details:\n```\n{errors_text[:1000]}\n```"
             post_github_comment(repo, pr_number, comment, github_token)
             break
 
