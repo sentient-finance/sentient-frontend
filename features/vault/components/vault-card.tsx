@@ -12,6 +12,7 @@ export function VaultCard({
   return (
     <div
       onClick={() => onSelect(vault)}
+      data-testid={`vault-card-${vault.addr}`}
       className="border-border bg-card/80 hover:border-primary/40 hover:bg-card cursor-pointer rounded-2xl border p-4 transition-all"
     >
       <div className="mb-3 flex items-center justify-between">

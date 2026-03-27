@@ -151,6 +151,7 @@ export function CCIPPanel({ vaultAddress, chainId, vaultOwner }: CCIPPanelProps)
                 </label>
                 <input
                   id="shield-amount"
+                  data-testid="shield-amount-input"
                   type="text"
                   value={shieldAmount}
                   onChange={(e) => setShieldAmount(e.target.value)}
@@ -166,6 +167,7 @@ export function CCIPPanel({ vaultAddress, chainId, vaultOwner }: CCIPPanelProps)
                 </label>
                 <input
                   id="shield-receiver"
+                  data-testid="shield-receiver-input"
                   type="text"
                   value={shieldReceiver || userAddress || ""}
                   onChange={(e) => setShieldReceiver(e.target.value)}
@@ -181,6 +183,7 @@ export function CCIPPanel({ vaultAddress, chainId, vaultOwner }: CCIPPanelProps)
                 </label>
                 <select
                   id="dest-chain"
+                  data-testid="dest-chain-select"
                   value={destSelector.toString()}
                   onChange={(e) => setDestSelector(BigInt(e.target.value))}
                   className="border-border/60 bg-card text-foreground focus:border-primary/50 w-full rounded-lg border px-3 py-2 text-xs font-medium outline-none"
@@ -221,6 +224,7 @@ export function CCIPPanel({ vaultAddress, chainId, vaultOwner }: CCIPPanelProps)
               <button
                 onClick={handleEmergencyShield}
                 disabled={!canExecuteShield}
+                data-testid="execute-shield-button"
                 className="bg-warning/20 text-warning hover:bg-warning/30 flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-xs font-semibold transition-all disabled:opacity-50"
               >
                 {isWritePending ? (

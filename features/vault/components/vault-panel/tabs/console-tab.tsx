@@ -132,6 +132,7 @@ export const ConsoleTab = ({
         <div className="flex items-center gap-1.5">
           <button
             onClick={() => setShowDeposit(true)}
+            data-testid="vault-deposit-button"
             disabled={status === "approving" || status === "depositing"}
             className="border-primary/30 text-primary hover:bg-primary/10 flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50"
           >
@@ -139,6 +140,7 @@ export const ConsoleTab = ({
           </button>
           <button
             onClick={() => setShowWithdraw(true)}
+            data-testid="vault-withdraw-button"
             disabled={vaultTokens.length === 0 || withdrawStatus === "withdrawing"}
             className="border-primary/30 text-primary hover:bg-primary/10 flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50"
           >

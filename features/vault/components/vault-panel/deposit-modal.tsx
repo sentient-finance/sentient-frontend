@@ -97,6 +97,7 @@ export function DepositModal({ onClose, onConfirm, status, error }: DepositModal
             <input
               autoFocus
               type="text"
+              data-testid="deposit-token-search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search by name, symbol or address…"
@@ -144,6 +145,7 @@ export function DepositModal({ onClose, onConfirm, status, error }: DepositModal
                 <button
                   key={token.address}
                   onClick={() => setSelectedToken(token)}
+                  data-testid={`deposit-token-${token.symbol}`}
                   className={`border-border/20 flex w-full items-center gap-3 border-b px-5 py-3 transition-all last:border-0 ${
                     isSelected ? "bg-primary/10" : "hover:bg-white/5"
                   }`}
@@ -177,6 +179,7 @@ export function DepositModal({ onClose, onConfirm, status, error }: DepositModal
             <input
               type="number"
               min="0"
+              data-testid="deposit-amount-input"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               placeholder="0.00"
@@ -198,6 +201,7 @@ export function DepositModal({ onClose, onConfirm, status, error }: DepositModal
             </button>
             <button
               onClick={handleConfirm}
+              data-testid="deposit-confirm-button"
               disabled={!selectedToken || !amount || Number(amount) <= 0 || isPending}
               className="bg-primary flex-1 rounded-lg py-2 text-xs font-semibold text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
             >

@@ -3,7 +3,7 @@ name: MiniMax Code Review
 on:
   pull_request:
     branches: [master, dev]
-    types: [opened, synchronize, reopened]
+    types: [opened]
   workflow_dispatch:
     inputs:
       review_rounds:
@@ -96,7 +96,7 @@ jobs:
           git diff "$BASE_BRANCH" --diff-filter=AM \
             -- '*.ts' '*.tsx' '*.js' '*.jsx' \
             ':!*.test.*' ':!e2e/**' ':!*.spec.*' ':!*.snap' \
-            > pr_diff.patch 2>/dev/null || echo "" > pr_diff.patch
+            > pr_diff.patch || echo "" > pr_diff.patch
 
           DIFF_LINES=$(wc -l < pr_diff.patch | tr -d ' ')
           echo "Diff lines: $DIFF_LINES"
@@ -131,6 +131,11 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
       - name: Restore diff
         id: restore_diff
         env:
@@ -139,7 +144,7 @@ jobs:
           git diff "origin/$BASE_BRANCH" --diff-filter=AM \
             -- '*.ts' '*.tsx' '*.js' '*.jsx' \
             ':!*.test.*' ':!e2e/**' ':!*.spec.*' ':!*.snap' \
-            > pr_diff.patch 2>/dev/null || echo "" > pr_diff.patch
+            > pr_diff.patch || echo "" > pr_diff.patch
 
       - name: Run MiniMax Review Loop
         id: review_loop
@@ -182,6 +187,11 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
@@ -191,7 +201,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.bun/install/cache
-          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lockb') }}
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
           restore-keys: |
             ${{ runner.os }}-bun-
 
@@ -225,129 +235,25 @@ jobs:
           path: /tmp/fix_output.log
           retention-days: 7
 
-  final-checks:
+  reporter:
     needs: [setup, review, auto-fix]
     if: always() && needs.setup.outputs.is_feature_branch == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
     permissions:
-      contents: write
       pull-requests: write
-    outputs:
-      lint_passed: ${{ steps.checks.outputs.lint_passed }}
-      format_passed: ${{ steps.checks.outputs.format_passed }}
-      typecheck_passed: ${{ steps.checks.outputs.typecheck_passed }}
-      build_passed: ${{ steps.checks.outputs.build_passed }}
-      all_passed: ${{ steps.checks.outputs.all_passed }}
     steps:
-      - name: Checkout PR branch
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref }}
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-
-      - name: Cache bun dependencies
-        uses: actions/cache@v4
-        with:
-          path: ~/.bun/install/cache
-          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lockb') }}
-          restore-keys: |
-            ${{ runner.os }}-bun-
-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
-
-      - name: Install Playwright browsers
-        run: |
-          if [ -f 'playwright.config.ts' ] || [ -f 'playwright.config.js' ]; then
-            npx playwright install --with-deps chromium
-          fi
-
-      - name: Run checks
-        id: checks
-        run: |
-          LINT_RESULT=0
-          FORMAT_RESULT=0
-          TYPECHECK_RESULT=0
-          BUILD_RESULT=0
-
-          echo "--- Lint ---"
-          bun run lint || LINT_RESULT=1
-          echo "lint_passed=$([ "$LINT_RESULT" = "0" ] && echo "true" || echo "false")" >> "$GITHUB_OUTPUT"
-
-          echo "--- Format check ---"
-          bun run format:check || FORMAT_RESULT=1
-          echo "format_passed=$([ "$FORMAT_RESULT" = "0" ] && echo "true" || echo "false")" >> "$GITHUB_OUTPUT"
-
-          echo "--- Type check ---"
-          bun run type-check || TYPECHECK_RESULT=1
-          echo "typecheck_passed=$([ "$TYPECHECK_RESULT" = "0" ] && echo "true" || echo "false")" >> "$GITHUB_OUTPUT"
-
-          echo "--- Build ---"
-          bun run build || BUILD_RESULT=1
-          echo "build_passed=$([ "$BUILD_RESULT" = "0" ] && echo "true" || echo "false")" >> "$GITHUB_OUTPUT"
-
-          if [ "$LINT_RESULT" = "0" ] && [ "$FORMAT_RESULT" = "0" ] && [ "$TYPECHECK_RESULT" = "0" ] && [ "$BUILD_RESULT" = "0" ]; then
-            echo "all_passed=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "all_passed=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Post final status comment (update or create)
-        if: always()
+      - name: Post AI Activity Report
         uses: actions/github-script@v7
         with:
           script: |
             const prNumber = '${{ needs.setup.outputs.pr_number }}';
-            const runId = '${{ needs.setup.outputs.run_id }}';
-            const allPassed = '${{ steps.checks.outputs.all_passed }}' === 'true';
-            const changesRequested = '${{ needs.review.outputs.changes_requested }}' === 'true';
-
-            const checks = {
-              lint: '${{ steps.checks.outputs.lint_passed }}' === 'true',
-              format: '${{ steps.checks.outputs.format_passed }}' === 'true',
-              typecheck: '${{ steps.checks.outputs.typecheck_passed }}' === 'true',
-              build: '${{ steps.checks.outputs.build_passed }}' === 'true'
-            };
-
-            const reviewSummary = '${{ needs.review.outputs.review_summary }}';
             const reviewRounds = '${{ needs.review.outputs.review_rounds }}';
             const fixRounds = '${{ needs.auto-fix.outputs.fix_rounds }}' || '0';
-            const fixSuccess = '${{ needs.auto-fix.outputs.all_fixed }}' === 'true';
 
-            let md = `## 🛠️ Final Quality Report: ${allPassed ? 'Passed ✅' : 'Failed ❌'}\n\n`;
+            let md = `### 🤖 AI Activity Report\n\n`;
+            md += `- **Review Rounds**: ${reviewRounds}\n`;
+            md += `- **Auto-Fix Rounds**: ${fixRounds}\n`;
 
-            md += `### 🔍 Technical Checks\n| Check | Status |\n|---|---|\n`;
-            md += `| **Lint** | ${checks.lint ? '✅' : '❌'} |\n`;
-            md += `| **Format** | ${checks.format ? '✅' : '❌'} |\n`;
-            md += `| **Type Check** | ${checks.typecheck ? '✅' : '❌'} |\n`;
-            md += `| **Build** | ${checks.build ? '✅' : '❌'} |\n\n`;
-
-            md += `### 🤖 AI Activity\n`;
-            md += `- **Review Rounds:** ${reviewRounds}\n`;
-            md += `- **Auto-Fix Rounds:** ${fixRounds}\n`;
-            if (parseInt(fixRounds) > 0) {
-              md += `- **Auto-Fix Result:** ${fixSuccess ? '✅ Fully Resolved' : '⚠️ Partially Resolved'}\n`;
-            }
-
-            md += `\n### 📝 Review Summary\n> ${reviewSummary || '*No summary available.*'}\n\n`;
-
-            if (allPassed && !changesRequested) {
-              md += `✅ **Build verified - ready for merge!**`;
-            } else if (allPassed && changesRequested) {
-              md += `⚠️ **Checks passed but changes were requested in review.** Please address the feedback before merging.`;
-            } else {
-              md += `❌ **Issues detected.** Please check the logs and address the failing steps above.`;
-            }
-
-            md += `\n\n*Run ID: \`${runId}\` | Powered by MiniMax AI Builder*`;
-
-            // Check for existing bot comment with same run ID to avoid duplicates
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -356,33 +262,28 @@ jobs:
 
             const botComment = comments.find(c => 
               c.user.type === 'Bot' && 
-              c.body.includes('Final Quality Report') && 
-              c.body.includes(runId)
+              c.body.includes('AI Activity Report')
             );
 
             if (botComment) {
-              // Update existing comment
               await github.rest.issues.updateComment({
                 comment_id: botComment.id,
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 body: md
               });
-              console.log('Updated existing comment');
             } else {
-              // Create new comment
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: parseInt(prNumber),
                 body: md
               });
-              console.log('Created new comment');
             }
 
   auto-commit:
-    needs: [setup, review, auto-fix, final-checks]
-    if: needs.final-checks.outputs.all_passed == 'true' && ( needs.review.outputs.changes_requested != 'true' || needs.auto-fix.outputs.all_fixed == 'true' )
+    needs: [setup, review, auto-fix]
+    if: needs.setup.outputs.is_feature_branch == 'true' && (needs.auto-fix.outputs.all_fixed == 'true' || needs.review.outputs.changes_requested != 'true')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -402,8 +303,6 @@ jobs:
 
       - name: Create approval commit
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -A
 
           if git diff --cached --quiet; then
@@ -415,15 +314,3 @@ jobs:
             git push origin '${{ github.head_ref }}'
             echo "Approval commit pushed"
           fi
-
-      - name: Report approval
-        if: always()
-        uses: actions/github-script@v7
-        with:
-          script: |
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: ${{ needs.setup.outputs.pr_number }},
-              body: '✅ **MiniMax Code Review complete — approval commit pushed!**\n\n*MiniMax Code Review workflow*'
-            });
