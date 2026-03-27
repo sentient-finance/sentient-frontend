@@ -1,0 +1,123 @@
+name: E2E
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+  workflow_dispatch:
+
+env:
+  BUN_VERSION: "1.2.8"
+
+jobs:
+  # ─── Shared setup: build artifact được cache lại bởi upload/download ────────
+  build:
+    name: "Build"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+          cache: "bun"
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build application
+        run: bun run build
+
+      - name: Cache build output
+        uses: actions/cache/save@v4
+        with:
+          path: .next
+          key: next-build-${{ github.sha }}
+
+  # ─── Job headless: CI standard ──────────────────────────────────────────────
+  test-e2e-headless:
+    name: "E2E / Headless"
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      CI: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+          cache: "bun"
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Restore build output
+        uses: actions/cache/restore@v4
+        with:
+          path: .next
+          key: next-build-${{ github.sha }}
+
+      - name: Install Playwright Browsers
+        run: bunx playwright install --with-deps chromium
+
+      - name: Run E2E tests (headless)
+        run: bun test:e2e
+
+      - name: Upload headless report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: report-headless
+          path: playwright-report/
+          retention-days: 30
+
+  # ─── Job headed: dùng xvfb để giả lập display server ───────────────────────
+  test-e2e-headed:
+    name: "E2E / Headed (xvfb)"
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      CI: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+          cache: "bun"
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Restore build output
+        uses: actions/cache/restore@v4
+        with:
+          path: .next
+          key: next-build-${{ github.sha }}
+
+      - name: Install xvfb + Playwright Browsers
+        run: |
+          sudo apt-get install -y xvfb
+          bunx playwright install --with-deps chromium
+
+      - name: Run E2E tests (headed via xvfb)
+        run: xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" bun test:e2e:headed
+
+      - name: Upload headed report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: report-headed
+          path: playwright-report/
+          retention-days: 30

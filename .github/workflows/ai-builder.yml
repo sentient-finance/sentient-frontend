@@ -3,7 +3,7 @@ name: MiniMax Code Review
 on:
   pull_request:
     branches: [master, dev]
-    types: [opened, synchronize, reopened]
+    types: [opened]
   workflow_dispatch:
     inputs:
       review_rounds:
