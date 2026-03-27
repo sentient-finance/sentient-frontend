@@ -1,5 +1,5 @@
 import { test as base, Page } from "@playwright/test";
-import { injectMockWallet } from "./utils/mock-wallet";
+import { injectMockWallet } from "./mock-wallet";
 
 type MyFixtures = {
   walletPage: Page;

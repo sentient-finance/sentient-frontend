@@ -1,5 +1,5 @@
-import { test, expect } from "./fixtures";
-import { MOCK_WALLET_ADDRESS } from "./utils/mock-wallet";
+import { test, expect } from "../ui/fixtures";
+import { MOCK_WALLET_ADDRESS } from "../ui/mock-wallet";
 
 test.describe("CCIP Feature", () => {
   test.setTimeout(60000);

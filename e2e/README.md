@@ -2,6 +2,36 @@
 
 This directory contains Playwright end-to-end tests for the Sentient Finance app.
 
+## Structure
+
+```
+e2e/
+├── dev/                          # Dev-only: debug, exploration, work-in-progress tests
+│   └── example.spec.ts
+├── pro/                          # Production tests
+│   ├── ui/                       # Shared UI layer
+│   │   ├── fixtures.ts          # Test fixtures + wallet injection
+│   │   ├── mock-wallet.ts      # Mock EIP-1193 provider
+│   │   ├── components/
+│   │   │   └── wallet-connect.ts
+│   │   └── pages/
+│   │       ├── landing-page.ts
+│   │       ├── dashboard-page.ts
+│   │       ├── vault-page.ts
+│   │       ├── ccip-page.ts
+│   │       ├── notifications-page.ts
+│   │       └── search-page.ts
+│   └── features/                 # Test specs organized by feature
+│       ├── landing.spec.ts
+│       ├── dashboard.spec.ts
+│       ├── vault.spec.ts
+│       ├── ccip.spec.ts
+│       ├── notifications.spec.ts
+│       └── search.spec.ts
+├── tsconfig.json
+└── README.md
+```
+
 ## Setup
 
 1. Install dependencies (including Playwright):
@@ -43,15 +73,6 @@ bun run test:e2e --grep "landing"
 bun run test:e2e --project=chromium
 ```
 
-## Test Structure
-
-- `example.spec.ts` - Basic smoke tests (homepage loads, no console errors)
-- `landing.spec.ts` - Landing page tests (hero, CTA, navigation)
-- `dashboard.spec.ts` - Dashboard page tests (loading, navigation)
-- `vault.spec.ts` - Vault feature tests
-- `ccip.spec.ts` - CCIP feature tests
-- `notifications.spec.ts` - Notifications feature tests
-
 ## Configuration
 
 See `playwright.config.ts` for test configuration including:
@@ -66,3 +87,5 @@ See `playwright.config.ts` for test configuration including:
 - Tests are designed to be resilient to wallet connection states
 - The dev server is automatically started when running locally
 - Set `CI=true` environment variable to run in CI mode
+- Page objects are available in `pro/ui/pages/`
+- Use `walletPage` fixture in specs that need a mock wallet connection

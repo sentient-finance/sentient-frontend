@@ -1,4 +1,4 @@
-import { test, expect } from "./fixtures";
+import { test, expect } from "../ui/fixtures";
 
 test.describe("Vault Feature", () => {
   test.setTimeout(60000);
