@@ -11,7 +11,6 @@ env:
   BUN_VERSION: "1.2.8"
 
 jobs:
-  # ─── Shared setup: build artifact được cache lại bởi upload/download ────────
   build:
     name: "Build"
     runs-on: ubuntu-latest
@@ -38,7 +37,6 @@ jobs:
           path: .next
           key: next-build-${{ github.sha }}
 
-  # ─── Job headless: CI standard ──────────────────────────────────────────────
   test-e2e-headless:
     name: "E2E / Headless"
     needs: build
@@ -79,7 +77,6 @@ jobs:
           path: playwright-report/
           retention-days: 30
 
-  # ─── Job headed: dùng xvfb để giả lập display server ───────────────────────
   test-e2e-headed:
     name: "E2E / Headed (xvfb)"
     needs: build
