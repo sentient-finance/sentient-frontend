@@ -130,9 +130,9 @@ export default function NotificationsPage() {
       <div className="flex gap-4 border-b dark:border-gray-700">
         <button
           onClick={() => handleTabChange("preferences")}
-          className={`pb-2 px-1 text-sm font-medium transition-colors ${
+          className={`px-1 pb-2 text-sm font-medium transition-colors ${
             activeTab === "preferences"
-              ? "border-b-2 border-primary text-primary"
+              ? "border-primary text-primary border-b-2"
               : "text-muted hover:text-foreground"
           }`}
         >
@@ -140,9 +140,9 @@ export default function NotificationsPage() {
         </button>
         <button
           onClick={() => handleTabChange("price_alerts")}
-          className={`pb-2 px-1 text-sm font-medium transition-colors ${
+          className={`px-1 pb-2 text-sm font-medium transition-colors ${
             activeTab === "price_alerts"
-              ? "border-b-2 border-primary text-primary"
+              ? "border-primary text-primary border-b-2"
               : "text-muted hover:text-foreground"
           }`}
         >
@@ -162,9 +162,9 @@ export default function NotificationsPage() {
       ) : (
         <div className="space-y-4">
           {/* Price Alerts Panel */}
-          <div className="bg-card-2/40 rounded-xl border border-border/50 p-6">
-            <h2 className="text-lg font-semibold mb-1">📊 Price Alerts</h2>
-            <p className="text-sm text-muted mb-4">
+          <div className="bg-card-2/40 border-border/50 rounded-xl border p-6">
+            <h2 className="mb-1 text-lg font-semibold">📊 Price Alerts</h2>
+            <p className="text-muted mb-4 text-sm">
               Get notified when a vault token price crosses your threshold. Alerts are{" "}
               <strong>one-shot</strong> — they trigger once and then deactivate.
             </p>
@@ -172,22 +172,22 @@ export default function NotificationsPage() {
             {/* Create Alert Form */}
             <form
               onSubmit={handleCreateAlert}
-              className="space-y-4 mb-6 p-4 bg-background/50 dark:bg-background/20 rounded-lg"
+              className="bg-background/50 dark:bg-background/20 mb-6 space-y-4 rounded-lg p-4"
             >
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
-                  <label className="block text-sm font-medium mb-1">Vault Address *</label>
+                  <label className="mb-1 block text-sm font-medium">Vault Address *</label>
                   <input
                     type="text"
                     value={selectedVault}
                     onChange={(e) => setSelectedVault(e.target.value)}
                     placeholder="0x..."
                     required
-                    className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 text-sm"
+                    className="w-full rounded-lg border px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Threshold Price (USD) *</label>
+                  <label className="mb-1 block text-sm font-medium">Threshold Price (USD) *</label>
                   <input
                     type="number"
                     value={thresholdPrice}
@@ -196,28 +196,28 @@ export default function NotificationsPage() {
                     step="0.01"
                     min="0"
                     required
-                    className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 text-sm"
+                    className="w-full rounded-lg border px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Alert When</label>
+                  <label className="mb-1 block text-sm font-medium">Alert When</label>
                   <select
                     value={alertType}
                     onChange={(e) => setAlertType(e.target.value as "above" | "below")}
-                    className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 text-sm"
+                    className="w-full rounded-lg border px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700"
                   >
                     <option value="below">Price drops below</option>
                     <option value="above">Price rises above</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Action</label>
+                  <label className="mb-1 block text-sm font-medium">Action</label>
                   <select
                     value={actionType}
                     onChange={(e) =>
                       setActionType(e.target.value as "none" | "fast_swap" | "auto_swap")
                     }
-                    className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 text-sm"
+                    className="w-full rounded-lg border px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700"
                   >
                     <option value="none">🔔 Notify only</option>
                     <option value="fast_swap">🚀 Fast Swap (with button)</option>
@@ -227,28 +227,26 @@ export default function NotificationsPage() {
               </div>
               <button
                 type="submit"
-                disabled={
-                  alertStatus === "loading" || !selectedVault || !thresholdPrice
-                }
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 text-sm font-medium"
+                disabled={alertStatus === "loading" || !selectedVault || !thresholdPrice}
+                className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
               >
                 {alertStatus === "loading" ? "Creating..." : "Create Alert"}
               </button>
               {alertStatus === "success" && (
-                <span className="text-green-600 ml-2 text-sm">✓ Alert created!</span>
+                <span className="ml-2 text-sm text-green-600">✓ Alert created!</span>
               )}
               {alertStatus === "error" && (
-                <span className="text-red-600 ml-2 text-sm">Failed to create alert</span>
+                <span className="ml-2 text-sm text-red-600">Failed to create alert</span>
               )}
             </form>
 
             {/* Alert List */}
             {!localStorage.getItem("telegram_chat_id") ? (
-              <p className="text-muted text-sm text-center py-4">
+              <p className="text-muted py-4 text-center text-sm">
                 Connect Telegram above to create price alerts.
               </p>
             ) : alerts.length === 0 ? (
-              <p className="text-muted text-sm text-center py-4">
+              <p className="text-muted py-4 text-center text-sm">
                 No alerts yet. Create one above.
               </p>
             ) : (
@@ -256,27 +254,24 @@ export default function NotificationsPage() {
                 {alerts.map((alert) => (
                   <div
                     key={alert.id}
-                    className="flex items-center justify-between bg-background/50 dark:bg-background/20 rounded-lg px-4 py-3"
+                    className="bg-background/50 dark:bg-background/20 flex items-center justify-between rounded-lg px-4 py-3"
                   >
                     <div>
-                      <div className="font-medium text-sm">
+                      <div className="text-sm font-medium">
                         {alert.alert_type === "below" ? "📉" : "📈"}{" "}
                         {alert.alert_type.toUpperCase()} ${alert.threshold_price}
                       </div>
-                      <div className="text-xs text-muted mt-0.5">
-                        Vault:{" "}
-                        <code className="text-[10px]">{alert.vault_address}</code>
+                      <div className="text-muted mt-0.5 text-xs">
+                        Vault: <code className="text-[10px]">{alert.vault_address}</code>
                         {" | "} Action:{" "}
-                        <span className="capitalize">
-                          {alert.action_type.replace("_", " ")}
-                        </span>
+                        <span className="capitalize">{alert.action_type.replace("_", " ")}</span>
                         {" | "}
                         {alert.is_active ? "✅ Active" : "⏸️ Triggered"}
                       </div>
                     </div>
                     <button
                       onClick={() => handleDeleteAlert(alert.id)}
-                      className="text-red-600 hover:text-red-700 text-xs font-medium"
+                      className="text-xs font-medium text-red-600 hover:text-red-700"
                     >
                       Delete
                     </button>

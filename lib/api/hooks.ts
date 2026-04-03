@@ -91,7 +91,10 @@ export function useCCIPEstimateFee(
 }
 
 // === Notification Channel Hooks ===
-export function useNotificationChannels(params?: { user_wallet?: string; telegram_chat_id?: string }) {
+export function useNotificationChannels(params?: {
+  user_wallet?: string;
+  telegram_chat_id?: string;
+}) {
   return useQuery({
     queryKey: ["notification-channels", params] as const,
     queryFn: () => getNotificationChannels(params),
@@ -100,7 +103,11 @@ export function useNotificationChannels(params?: { user_wallet?: string; telegra
 }
 
 // === Price Alert Hooks ===
-export function usePriceAlerts(params?: { recipient_id?: string; vault_address?: string; is_active?: boolean }) {
+export function usePriceAlerts(params?: {
+  recipient_id?: string;
+  vault_address?: string;
+  is_active?: boolean;
+}) {
   return useQuery({
     queryKey: ["price-alerts", params] as const,
     queryFn: () => getPriceAlerts(params),

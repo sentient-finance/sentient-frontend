@@ -175,8 +175,7 @@ export async function getPriceAlerts(params?: {
   const searchParams = new URLSearchParams();
   if (params?.recipient_id) searchParams.set("recipient_id", params.recipient_id);
   if (params?.vault_address) searchParams.set("vault_address", params.vault_address);
-  if (params?.is_active !== undefined)
-    searchParams.set("is_active", String(params.is_active));
+  if (params?.is_active !== undefined) searchParams.set("is_active", String(params.is_active));
   const response = await fetch(`${API_BASE}/api/v1/alerts?${searchParams}`);
   if (!response.ok) throw new Error(`Failed to fetch alerts: ${response.statusText}`);
   return response.json() as Promise<PriceAlert[]>;
