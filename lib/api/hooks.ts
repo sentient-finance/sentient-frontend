@@ -7,10 +7,18 @@ import {
   getVaultHistory,
   getCCIPConfig,
   estimateCCIPFee,
+  registerNotificationChannel,
+  getNotificationChannels,
+  deleteNotificationChannel,
+  createPriceAlert,
+  getPriceAlerts,
+  deletePriceAlert,
   type ListVaultsParams,
   type GetVaultParams,
   type GetVaultHistoryParams,
   type EstimateFeeRequest,
+  type ChannelRegisterRequest,
+  type PriceAlertCreateRequest,
 } from "./client";
 
 export const vaultKeys = {
@@ -79,5 +87,30 @@ export function useCCIPEstimateFee(
         : ["ccip", "estimate-fee", "disabled"],
     queryFn: () => (params ? estimateCCIPFee(params) : Promise.reject(new Error("No params"))),
     enabled,
+  });
+}
+
+// === Notification Channel Hooks ===
+export function useNotificationChannels(params?: {
+  user_wallet?: string;
+  telegram_chat_id?: string;
+}) {
+  return useQuery({
+    queryKey: ["notification-channels", params] as const,
+    queryFn: () => getNotificationChannels(params),
+    enabled: !!params?.user_wallet || !!params?.telegram_chat_id,
+  });
+}
+
+// === Price Alert Hooks ===
+export function usePriceAlerts(params?: {
+  recipient_id?: string;
+  vault_address?: string;
+  is_active?: boolean;
+}) {
+  return useQuery({
+    queryKey: ["price-alerts", params] as const,
+    queryFn: () => getPriceAlerts(params),
+    enabled: !!params?.recipient_id,
   });
 }

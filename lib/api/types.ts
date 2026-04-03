@@ -72,3 +72,46 @@ export interface EstimateFeeResponse {
   fee_wei: string;
   fee_eth: string;
 }
+
+// === Notification Channel ===
+export interface NotificationChannel {
+  id: number;
+  user_wallet: string;
+  channel_type: "telegram";
+  channel_id: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface ChannelRegisterRequest {
+  user_wallet: string;
+  channel_type: "telegram";
+  channel_id: string;
+}
+
+// === Price Alert ===
+export interface PriceAlert {
+  id: number;
+  recipient_id: string;
+  channel_type: "telegram";
+  vault_address: string;
+  chain_id: number;
+  alert_type: "above" | "below";
+  threshold_price: number;
+  action_type: "none" | "fast_swap" | "auto_swap";
+  action_config: Record<string, unknown> | null;
+  is_active: boolean;
+  triggered_at: string | null;
+  created_at: string;
+}
+
+export interface PriceAlertCreateRequest {
+  recipient_id: string;
+  channel_type: "telegram";
+  vault_address: string;
+  chain_id?: number;
+  alert_type: "above" | "below";
+  threshold_price: number;
+  action_type?: "none" | "fast_swap" | "auto_swap";
+  action_config?: Record<string, unknown> | null;
+}

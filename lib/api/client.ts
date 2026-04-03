@@ -6,10 +6,14 @@ import type {
   CCIPConfigResponse,
   EstimateFeeRequest,
   EstimateFeeResponse,
+  NotificationChannel,
+  ChannelRegisterRequest,
+  PriceAlert,
+  PriceAlertCreateRequest,
 } from "./types";
 import { FACTORY_CHAIN } from "@/lib/constants/chains";
 
-export type { EstimateFeeRequest } from "./types";
+export type { EstimateFeeRequest, ChannelRegisterRequest, PriceAlertCreateRequest } from "./types";
 
 const API_BASE = "/api/proxy";
 
@@ -118,4 +122,68 @@ export async function estimateCCIPFee(body: EstimateFeeRequest): Promise<Estimat
     }),
   });
   return handleResponse<EstimateFeeResponse>(res);
+}
+
+// === Notification Channel ===
+export async function registerNotificationChannel(
+  data: ChannelRegisterRequest
+): Promise<NotificationChannel> {
+  const response = await fetch(`${API_BASE}/api/v1/alerts/channels`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!response.ok) throw new Error(`Failed to register channel: ${response.statusText}`);
+  return response.json() as Promise<NotificationChannel>;
+}
+
+export async function getNotificationChannels(params?: {
+  user_wallet?: string;
+  telegram_chat_id?: string;
+}): Promise<NotificationChannel[]> {
+  const searchParams = new URLSearchParams();
+  if (params?.user_wallet) searchParams.set("user_wallet", params.user_wallet);
+  if (params?.telegram_chat_id) searchParams.set("telegram_chat_id", params.telegram_chat_id);
+  const response = await fetch(`${API_BASE}/api/v1/alerts/channels?${searchParams}`);
+  if (!response.ok) throw new Error(`Failed to fetch channels: ${response.statusText}`);
+  return response.json() as Promise<NotificationChannel[]>;
+}
+
+export async function deleteNotificationChannel(channelId: number): Promise<void> {
+  const response = await fetch(`${API_BASE}/api/v1/alerts/channels/${channelId}`, {
+    method: "DELETE",
+  });
+  if (!response.ok) throw new Error(`Failed to delete channel: ${response.statusText}`);
+}
+
+// === Price Alert ===
+export async function createPriceAlert(data: PriceAlertCreateRequest): Promise<PriceAlert> {
+  const response = await fetch(`${API_BASE}/api/v1/alerts`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!response.ok) throw new Error(`Failed to create alert: ${response.statusText}`);
+  return response.json() as Promise<PriceAlert>;
+}
+
+export async function getPriceAlerts(params?: {
+  recipient_id?: string;
+  vault_address?: string;
+  is_active?: boolean;
+}): Promise<PriceAlert[]> {
+  const searchParams = new URLSearchParams();
+  if (params?.recipient_id) searchParams.set("recipient_id", params.recipient_id);
+  if (params?.vault_address) searchParams.set("vault_address", params.vault_address);
+  if (params?.is_active !== undefined) searchParams.set("is_active", String(params.is_active));
+  const response = await fetch(`${API_BASE}/api/v1/alerts?${searchParams}`);
+  if (!response.ok) throw new Error(`Failed to fetch alerts: ${response.statusText}`);
+  return response.json() as Promise<PriceAlert[]>;
+}
+
+export async function deletePriceAlert(alertId: number): Promise<void> {
+  const response = await fetch(`${API_BASE}/api/v1/alerts/${alertId}`, {
+    method: "DELETE",
+  });
+  if (!response.ok) throw new Error(`Failed to delete alert: ${response.statusText}`);
 }
