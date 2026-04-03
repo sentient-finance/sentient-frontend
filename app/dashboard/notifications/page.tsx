@@ -1,24 +1,16 @@
 "use client";
 
-import { useState } from "react";
-import { useAccount } from "wagmi";
+import { useState, useEffect, useCallback } from "react";
 import { useNotifications } from "@/features/notifications";
 import { useTelegramConnect } from "@/features/notifications/hooks/use-telegram-connect";
 import { ConnectionsRow } from "@/features/notifications/components/connections-row";
 import { RecentNotifications } from "@/features/notifications/components/recent-notifications";
 import { AlertPreferences } from "@/features/notifications/components/alert-preferences";
 import { TelegramConnectModal } from "@/features/notifications/components/telegram-connect-modal";
-import {
-  createPriceAlert,
-  deletePriceAlert,
-  getPriceAlerts,
-  getNotificationChannels,
-  deleteNotificationChannel,
-} from "@/lib/api/client";
-import type { PriceAlert, NotificationChannel } from "@/lib/api/types";
+import { createPriceAlert, deletePriceAlert, getPriceAlerts } from "@/lib/api/client";
+import type { PriceAlert } from "@/lib/api/types";
 
 export default function NotificationsPage() {
-  const { address } = useAccount();
   const { alertPrefs, togglePref, recentNotifications } = useNotifications();
   const {
     isConnected,
@@ -39,8 +31,9 @@ export default function NotificationsPage() {
   // Price alerts state
   const [activeTab, setActiveTab] = useState<"preferences" | "price_alerts">("preferences");
   const [alerts, setAlerts] = useState<PriceAlert[]>([]);
-  const [channels, setChannels] = useState<NotificationChannel[]>([]);
   const [alertsLoaded, setAlertsLoaded] = useState(false);
+  const [alertsError, setAlertsError] = useState<string | null>(null);
+  const [deletingAlertId, setDeletingAlertId] = useState<number | null>(null);
 
   // Alert form state
   const [selectedVault, setSelectedVault] = useState("");
@@ -49,68 +42,81 @@ export default function NotificationsPage() {
   const [actionType, setActionType] = useState<"none" | "fast_swap" | "auto_swap">("none");
   const [alertStatus, setAlertStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
 
-  const loadChannels = async () => {
-    if (!address) return;
-    try {
-      const data = await getNotificationChannels({ user_wallet: address });
-      setChannels(data);
-    } catch (e) {
-      console.error("Failed to load channels", e);
+  // Auto-clear success/error after 4 seconds
+  useEffect(() => {
+    if (alertStatus === "success" || alertStatus === "error") {
+      const timer = setTimeout(() => setAlertStatus("idle"), 4000);
+      return () => clearTimeout(timer);
     }
-  };
+  }, [alertStatus]);
 
-  const loadAlerts = async (chatId: string) => {
+  const loadAlerts = useCallback(async (chatId: string) => {
     try {
       const data = await getPriceAlerts({ recipient_id: chatId });
       setAlerts(data);
+      setAlertsError(null);
       setAlertsLoaded(true);
-    } catch (e) {
-      console.error("Failed to load alerts", e);
+    } catch {
+      setAlertsError("Failed to load alerts. Please try again.");
+      setAlertsLoaded(true);
     }
-  };
+  }, []);
 
-  const handleTabChange = async (tab: "preferences" | "price_alerts") => {
+  const handleTabChange = (tab: "preferences" | "price_alerts") => {
     setActiveTab(tab);
     if (tab === "price_alerts" && !alertsLoaded) {
       const chatId = localStorage.getItem("telegram_chat_id");
       if (chatId) {
-        await loadChannels();
-        await loadAlerts(chatId);
+        loadAlerts(chatId);
       }
     }
+  };
+
+  // Reset status on form change
+  const handleVaultChange = (value: string) => {
+    setSelectedVault(value);
+    if (alertStatus !== "idle") setAlertStatus("idle");
+  };
+
+  const handleThresholdChange = (value: string) => {
+    setThresholdPrice(value);
+    if (alertStatus !== "idle") setAlertStatus("idle");
   };
 
   const handleCreateAlert = async (e: React.FormEvent) => {
     e.preventDefault();
     const chatId = localStorage.getItem("telegram_chat_id");
-    if (!selectedVault || !thresholdPrice || !chatId) return;
+    const price = parseFloat(thresholdPrice);
+    if (!selectedVault || !thresholdPrice || isNaN(price) || !chatId) return;
     setAlertStatus("loading");
     try {
       await createPriceAlert({
         recipient_id: chatId,
         channel_type: "telegram",
         vault_address: selectedVault,
-        chain_id: 84532,
         alert_type: alertType,
-        threshold_price: parseFloat(thresholdPrice),
+        threshold_price: price,
         action_type: actionType,
       });
       setAlertStatus("success");
       setThresholdPrice("");
+      setSelectedVault("");
       await loadAlerts(chatId);
-    } catch (e) {
+    } catch {
       setAlertStatus("error");
-      console.error(e);
     }
   };
 
   const handleDeleteAlert = async (alertId: number) => {
     const chatId = localStorage.getItem("telegram_chat_id");
+    setDeletingAlertId(alertId);
     try {
       await deletePriceAlert(alertId);
       if (chatId) await loadAlerts(chatId);
-    } catch (e) {
-      console.error(e);
+    } catch {
+      setAlertsError("Failed to delete alert. Please try again.");
+    } finally {
+      setDeletingAlertId(null);
     }
   };
 
@@ -180,9 +186,11 @@ export default function NotificationsPage() {
                   <input
                     type="text"
                     value={selectedVault}
-                    onChange={(e) => setSelectedVault(e.target.value)}
+                    onChange={(e) => handleVaultChange(e.target.value)}
                     placeholder="0x..."
                     required
+                    pattern="0x[a-fA-F0-9]{40}"
+                    title="Enter a valid Ethereum address (0x followed by 40 hex characters)"
                     className="w-full rounded-lg border px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700"
                   />
                 </div>
@@ -191,7 +199,7 @@ export default function NotificationsPage() {
                   <input
                     type="number"
                     value={thresholdPrice}
-                    onChange={(e) => setThresholdPrice(e.target.value)}
+                    onChange={(e) => handleThresholdChange(e.target.value)}
                     placeholder="1850.00"
                     step="0.01"
                     min="0"
@@ -245,6 +253,8 @@ export default function NotificationsPage() {
               <p className="text-muted py-4 text-center text-sm">
                 Connect Telegram above to create price alerts.
               </p>
+            ) : alertsError ? (
+              <p className="py-4 text-center text-sm text-red-600">{alertsError}</p>
             ) : alerts.length === 0 ? (
               <p className="text-muted py-4 text-center text-sm">
                 No alerts yet. Create one above.
@@ -271,9 +281,10 @@ export default function NotificationsPage() {
                     </div>
                     <button
                       onClick={() => handleDeleteAlert(alert.id)}
-                      className="text-xs font-medium text-red-600 hover:text-red-700"
+                      disabled={deletingAlertId === alert.id}
+                      className="text-xs font-medium text-red-600 hover:text-red-700 disabled:opacity-50"
                     >
-                      Delete
+                      {deletingAlertId === alert.id ? "Deleting..." : "Delete"}
                     </button>
                   </div>
                 ))}
