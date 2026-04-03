@@ -13,7 +13,7 @@ import type {
 } from "./types";
 import { FACTORY_CHAIN } from "@/lib/constants/chains";
 
-export type { EstimateFeeRequest } from "./types";
+export type { EstimateFeeRequest, ChannelRegisterRequest, PriceAlertCreateRequest } from "./types";
 
 const API_BASE = "/api/proxy";
 
