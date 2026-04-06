@@ -1,39 +1,36 @@
 "use client";
 
 import { useNotifications } from "@/features/notifications";
-import { useTelegramConnect } from "@/features/notifications/hooks/use-telegram-connect";
+import { useChannelConnect } from "@/features/notifications/hooks/use-channel-connect";
 import { ConnectionsRow } from "@/features/notifications/components/connections-row";
 import { RecentNotifications } from "@/features/notifications/components/recent-notifications";
 import { AlertPreferences } from "@/features/notifications/components/alert-preferences";
-import { TelegramConnectModal } from "@/features/notifications/components/telegram-connect-modal";
 
 export default function NotificationsPage() {
   const { alertPrefs, togglePref, recentNotifications } = useNotifications();
   const {
-    isConnected,
-    hydrated,
-    maskedChatId,
-    modalOpen,
-    openModal,
-    closeModal,
-    inputValue,
-    setInputValue,
-    handleSave,
-    handleDisconnect,
+    loading,
+    isTelegramConnected,
+    maskedRecipientId,
+    connecting,
+    disconnecting,
+    testing,
+    handleConnectTelegram,
+    handleDisconnectTelegram,
     handleTest,
-    isSaving,
-    isTesting,
-  } = useTelegramConnect();
+  } = useChannelConnect();
 
   return (
     <div className="space-y-5">
       <ConnectionsRow
-        hydrated={hydrated}
-        isConnected={isConnected}
-        maskedChatId={maskedChatId}
-        isTesting={isTesting}
-        onConnect={openModal}
-        onDisconnect={handleDisconnect}
+        loading={loading}
+        isConnected={isTelegramConnected}
+        maskedRecipientId={maskedRecipientId}
+        connecting={connecting}
+        disconnecting={disconnecting}
+        testing={testing}
+        onConnect={handleConnectTelegram}
+        onDisconnect={handleDisconnectTelegram}
         onTest={handleTest}
       />
 
@@ -45,15 +42,6 @@ export default function NotificationsPage() {
           <RecentNotifications notifications={recentNotifications} />
         </div>
       </div>
-
-      <TelegramConnectModal
-        modalOpen={modalOpen}
-        onClose={closeModal}
-        inputValue={inputValue}
-        onInputChange={setInputValue}
-        onSave={handleSave}
-        isSaving={isSaving}
-      />
     </div>
   );
 }
