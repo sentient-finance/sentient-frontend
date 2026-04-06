@@ -4,10 +4,12 @@ import { TelegramConnectionCard } from "./telegram-connection-card";
 import { EmailConnectionCard } from "./email-connection-card";
 
 interface ConnectionsRowProps {
-  hydrated: boolean;
+  loading: boolean;
   isConnected: boolean;
-  maskedChatId: string | null;
-  isTesting: boolean;
+  maskedRecipientId: string | null;
+  connecting: boolean;
+  disconnecting: boolean;
+  testing: boolean;
   onConnect: () => void;
   onDisconnect: () => void;
   onTest: () => void;

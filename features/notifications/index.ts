@@ -1,4 +1,4 @@
 export { useNotifications } from "./hooks/use-notifications";
 export type { AlertPreference, RecentNotification } from "./types";
-export { useTelegramConnect } from "./hooks/use-telegram-connect";
-export { TelegramConnectModal } from "./components/telegram-connect-modal";
+export { useChannelConnect } from "./hooks/use-channel-connect";
+export type { ConnectedChannel, ChannelType } from "./hooks/use-channel-connect";

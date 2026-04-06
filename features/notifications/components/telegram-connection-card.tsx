@@ -3,20 +3,24 @@
 import { TelegramIcon } from "@/components/ui/icons";
 
 interface TelegramConnectionCardProps {
-  hydrated: boolean;
+  loading: boolean;
   isConnected: boolean;
-  maskedChatId: string | null;
-  isTesting: boolean;
+  maskedRecipientId: string | null;
+  connecting: boolean;
+  disconnecting: boolean;
+  testing: boolean;
   onConnect: () => void;
   onDisconnect: () => void;
   onTest: () => void;
 }
 
 export function TelegramConnectionCard({
-  hydrated,
+  loading,
   isConnected,
-  maskedChatId,
-  isTesting,
+  maskedRecipientId,
+  connecting,
+  disconnecting,
+  testing,
   onConnect,
   onDisconnect,
   onTest,
@@ -37,12 +41,12 @@ export function TelegramConnectionCard({
           </div>
 
           {/* Status badge */}
-          {!hydrated ? (
+          {loading ? (
             <div className="bg-card-2/60 h-5 w-20 animate-pulse rounded-full" />
           ) : isConnected ? (
             <div className="flex items-center gap-1.5 rounded-full border border-[#2AABEE]/30 bg-[#2AABEE]/10 px-2 py-0.5 text-[11px] text-[#2AABEE]">
               <span className="h-1.5 w-1.5 rounded-full bg-[#2AABEE]" />
-              {maskedChatId}
+              {maskedRecipientId}
             </div>
           ) : (
             <div className="border-border bg-card-2/60 text-muted flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px]">
@@ -53,28 +57,30 @@ export function TelegramConnectionCard({
         </div>
 
         <div className="mt-3">
-          {!hydrated ? null : isConnected ? (
+          {loading ? null : isConnected ? (
             <div className="flex gap-2">
               <button
                 onClick={onDisconnect}
-                className="border-danger/30 bg-danger/10 text-danger hover:bg-danger/20 rounded-lg border px-3 py-1.5 text-[11px] font-semibold transition-all"
+                disabled={disconnecting}
+                className="border-danger/30 bg-danger/10 text-danger hover:bg-danger/20 rounded-lg border px-3 py-1.5 text-[11px] font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-40"
               >
-                Disconnect
+                {disconnecting ? "Disconnecting…" : "Disconnect"}
               </button>
               <button
                 onClick={onTest}
-                disabled={isTesting}
+                disabled={testing}
                 className="border-border hover:border-primary/50 hover:text-primary rounded-lg border px-3 py-1.5 text-[11px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40"
               >
-                {isTesting ? "Sending…" : "Test"}
+                {testing ? "Sending…" : "Test"}
               </button>
             </div>
           ) : (
             <button
               onClick={onConnect}
-              className="w-full rounded-lg bg-[#2AABEE] py-2 text-xs font-semibold text-white shadow-sm shadow-[#2AABEE]/20 transition-all hover:opacity-90"
+              disabled={connecting}
+              className="w-full rounded-lg bg-[#2AABEE] py-2 text-xs font-semibold text-white shadow-sm shadow-[#2AABEE]/20 transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Connect Telegram →
+              {connecting ? "Connecting…" : "Connect Telegram →"}
             </button>
           )}
         </div>
